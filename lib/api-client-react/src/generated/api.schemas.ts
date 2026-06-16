@@ -925,6 +925,10 @@ is_active?: boolean;
 };
 
 export type ListMedicinesParams = {
+/**
+ * Search by name, generic name, or brand
+ */
+q?: string;
 page?: number;
 per_page?: number;
 category?: string;

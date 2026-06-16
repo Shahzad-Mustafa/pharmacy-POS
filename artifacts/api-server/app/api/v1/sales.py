@@ -91,12 +91,16 @@ async def get_kpis(
     ))).scalar_one())
     top_med = None
     top_cashier = None
+    avg = revenue / max(txns, 1)
     return {
         "branch_id": str(branch_id) if branch_id else None,
         "date": today_str,
         "today_revenue": revenue,
         "today_transactions": txns,
-        "avg_basket": revenue / max(txns, 1),
+        "avg_basket": avg,
+        "avg_transaction": avg,
+        "revenue_today": revenue,
+        "transactions_today": txns,
         "top_medicine": top_med,
         "top_cashier": top_cashier,
         "refunds_today": refunds,
@@ -131,6 +135,7 @@ async def daily_summary(
         "date": today_str,
         "branch_id": str(branch_id) if branch_id else None,
         "total_sales": total_sales,
+        "total_revenue": total_sales,
         "total_transactions": total_txns,
         "cash_sales": cash,
         "card_sales": card,
@@ -139,6 +144,7 @@ async def daily_summary(
         "net_revenue": total_sales,
         "rx_sales": 0.0,
         "otc_sales": total_sales,
+        "by_payment_method": {"cash": cash, "card": card, "credit": credit},
     }
 
 
@@ -211,15 +217,26 @@ async def ward_dispense_log(
 
 @router.get("", summary="List sales")
 async def list_sales(
-    from_date: str = None, to_date: str = None, branch_id: uuid.UUID = None,
-    cashier_id: uuid.UUID = None, patient_id: uuid.UUID = None, sale_type: str = None,
-    payment_method: str = None, status: str = None,
-    page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(require_roles("admin", "manager", "accountant", "super_admin")),
+    from_date: str = Query(None, alias="from"),
+    to_date: str = Query(None, alias="to"),
+    branch_id: uuid.UUID = None,
+    cashier_id: uuid.UUID = None,
+    patient_id: uuid.UUID = None,
+    sale_type: str = None,
+    payment_method: str = None,
+    status: str = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(require_roles(*SALES_ROLES, "accountant")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = SaleRepository(db)
-    sales, total = await repo.list_sales(branch_id=branch_id, cashier_id=cashier_id, patient_id=patient_id, sale_type=sale_type, payment_method=payment_method, status=status, page=page, per_page=per_page)
+    sales, total = await repo.list_sales(
+        branch_id=branch_id, cashier_id=cashier_id, patient_id=patient_id,
+        sale_type=sale_type, payment_method=payment_method, status=status,
+        date_from=from_date, date_to=to_date,
+        page=page, per_page=per_page,
+    )
     return paginate([SaleResponse.model_validate(s).model_dump() for s in sales], total, page, per_page)
 
 

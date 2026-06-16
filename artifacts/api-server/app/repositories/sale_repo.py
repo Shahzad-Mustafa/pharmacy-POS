@@ -48,6 +48,12 @@ class SaleRepository(BaseRepository[Sale]):
             filters.append(Sale.payment_method == payment_method)
         if status:
             filters.append(Sale.status == status)
+        if date_from:
+            from sqlalchemy import cast, Date as DateType
+            filters.append(cast(Sale.created_at, DateType) >= date_from)
+        if date_to:
+            from sqlalchemy import cast, Date as DateType
+            filters.append(cast(Sale.created_at, DateType) <= date_to)
         query = select(Sale)
         count_q = select(func.count()).select_from(Sale)
         if filters:

@@ -51,7 +51,107 @@ async def payables_aging(
     current_user: User = Depends(require_roles("admin", "manager", "accountant", "super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    return []
+    from datetime import date, timedelta
+    from sqlalchemy import select, func
+    from app.models.supplier import Supplier, GRN, SupplierPayment
+
+    as_of = date.fromisoformat(as_of_date) if as_of_date else date.today()
+
+    grn_filters = [GRN.received_date <= as_of]
+    if branch_id:
+        grn_filters.append(GRN.branch_id == branch_id)
+
+    grn_q = (
+        select(
+            GRN.supplier_id,
+            func.sum(GRN.total).label("total_invoiced"),
+        )
+        .where(*grn_filters)
+        .group_by(GRN.supplier_id)
+    )
+    grn_rows = (await db.execute(grn_q)).fetchall()
+    invoiced_by_supplier = {str(r.supplier_id): float(r.total_invoiced or 0) for r in grn_rows}
+
+    paid_q = select(
+        SupplierPayment.supplier_id,
+        func.sum(SupplierPayment.amount).label("total_paid"),
+    ).group_by(SupplierPayment.supplier_id)
+    paid_rows = (await db.execute(paid_q)).fetchall()
+    paid_by_supplier = {str(r.supplier_id): float(r.total_paid or 0) for r in paid_rows}
+
+    if not invoiced_by_supplier:
+        return []
+
+    supplier_ids = list(invoiced_by_supplier.keys())
+    sup_result = await db.execute(
+        select(Supplier).where(Supplier.id.in_([uuid.UUID(sid) for sid in supplier_ids]))
+    )
+    suppliers = {str(s.id): s for s in sup_result.scalars().all()}
+
+    grn_aged_q = (
+        select(
+            GRN.supplier_id,
+            GRN.received_date,
+            GRN.total,
+        )
+        .where(*grn_filters)
+        .order_by(GRN.received_date)
+    )
+    grn_detail_rows = (await db.execute(grn_aged_q)).fetchall()
+
+    grns_by_supplier: dict = {}
+    for row in grn_detail_rows:
+        sid = str(row.supplier_id)
+        grns_by_supplier.setdefault(sid, []).append(row)
+
+    result = []
+    for sid, invoiced in invoiced_by_supplier.items():
+        paid = paid_by_supplier.get(sid, 0.0)
+        outstanding = max(invoiced - paid, 0.0)
+        if outstanding == 0:
+            continue
+
+        sup = suppliers.get(sid)
+        credit_days = sup.credit_days if sup else 0
+
+        buckets = {"current": 0.0, "days_1_30": 0.0, "days_31_60": 0.0, "days_61_90": 0.0, "over_90": 0.0}
+        remaining_outstanding = outstanding
+        for grn_row in grns_by_supplier.get(sid, []):
+            if remaining_outstanding <= 0:
+                break
+            grn_amount = float(grn_row.total or 0)
+            chunk = min(grn_amount, remaining_outstanding)
+            remaining_outstanding -= chunk
+
+            received = grn_row.received_date
+            if not received:
+                buckets["current"] += chunk
+                continue
+            due_date = received + timedelta(days=credit_days)
+            days_overdue = (as_of - due_date).days
+
+            if days_overdue <= 0:
+                buckets["current"] += chunk
+            elif days_overdue <= 30:
+                buckets["days_1_30"] += chunk
+            elif days_overdue <= 60:
+                buckets["days_31_60"] += chunk
+            elif days_overdue <= 90:
+                buckets["days_61_90"] += chunk
+            else:
+                buckets["over_90"] += chunk
+
+        result.append({
+            "supplier_id": sid,
+            "supplier_name": sup.name if sup else sid,
+            "total_invoiced": invoiced,
+            "total_paid": paid,
+            "total": outstanding,
+            **buckets,
+        })
+
+    result.sort(key=lambda x: x["total"], reverse=True)
+    return result
 
 
 @router.get("/purchase-orders", summary="List purchase orders")

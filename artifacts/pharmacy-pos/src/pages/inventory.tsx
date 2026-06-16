@@ -13,6 +13,8 @@ import {
   getGetStockValuationQueryKey,
   useGetReorderSuggestions,
   getGetReorderSuggestionsQueryKey,
+  useSearchMedicines,
+  useListBranches,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,6 +52,62 @@ const adjustSchema = z.object({
 type BatchForm = z.infer<typeof batchSchema>;
 type AdjustForm = z.infer<typeof adjustSchema>;
 
+function MedicineSearch({ value, onChange }: { value: string; onChange: (id: string, name: string) => void }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selectedName, setSelectedName] = useState("");
+
+  const { data } = useSearchMedicines(
+    { q: search },
+    { query: { enabled: search.length >= 2, queryKey: ["inv-med-search", search] } }
+  );
+  const results = Array.isArray(data) ? data : (data as any)?.data ?? [];
+
+  const handleSelect = (med: any) => {
+    onChange(med.id, med.name);
+    setSelectedName(med.name);
+    setOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <div className="relative">
+      {selectedName ? (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium flex-1 border rounded-md px-3 py-2 bg-muted">{selectedName}</span>
+          <Button type="button" size="sm" variant="ghost" onClick={() => { onChange("", ""); setSelectedName(""); }}>×</Button>
+        </div>
+      ) : (
+        <div>
+          <Input
+            placeholder="Type to search medicine..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            data-testid="input-medicine-search-batch"
+          />
+          {open && results.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-card border rounded-md shadow-lg max-h-48 overflow-y-auto">
+              {results.slice(0, 8).map((med: any) => (
+                <div
+                  key={med.id}
+                  className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
+                  onMouseDown={() => handleSelect(med)}
+                >
+                  <span className="font-medium">{med.name}</span>
+                  {med.generic_name && <span className="text-muted-foreground ml-2 text-xs">({med.generic_name})</span>}
+                  <span className="text-xs text-muted-foreground ml-2">{med.category}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Inventory() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -77,6 +135,9 @@ export default function Inventory() {
     { branch_id: branchId },
     { query: { queryKey: getGetReorderSuggestionsQueryKey({ branch_id: branchId }) } }
   );
+
+  const { data: branchesData } = useListBranches();
+  const branchList = Array.isArray(branchesData) ? branchesData : [];
 
   const createBatch = useCreateBatch();
   const createAdjustment = useCreateStockAdjustment();
@@ -287,8 +348,30 @@ export default function Inventory() {
           <DialogHeader><DialogTitle>Add Batch</DialogTitle></DialogHeader>
           <Form {...batchForm}>
             <form onSubmit={batchForm.handleSubmit(onBatchSubmit)} className="grid grid-cols-2 gap-4">
+              {!branchId && (
+                <FormField control={batchForm.control} name="branch_id" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Branch *</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                        <SelectContent>
+                          {branchList.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
               <FormField control={batchForm.control} name="medicine_id" render={({ field }) => (
-                <FormItem className="col-span-2"><FormLabel>Medicine ID *</FormLabel><FormControl><Input placeholder="Paste medicine UUID" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem className="col-span-2">
+                  <FormLabel>Medicine *</FormLabel>
+                  <FormControl>
+                    <MedicineSearch value={field.value} onChange={(id, _name) => field.onChange(id)} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
               <FormField control={batchForm.control} name="batch_number" render={({ field }) => (
                 <FormItem><FormLabel>Batch Number *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

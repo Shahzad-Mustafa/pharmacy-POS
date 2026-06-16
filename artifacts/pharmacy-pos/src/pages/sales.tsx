@@ -208,7 +208,7 @@ export default function Sales() {
                 ) : sales.map((s: any) => (
                   <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelectedSaleId(s.id)} data-testid={`row-sale-${s.id}`}>
                     <TableCell className="font-mono text-sm">{s.invoiceNumber ?? s.invoice_number}</TableCell>
-                    <TableCell>{s.patient_name ?? s.patientId ? "Patient" : "Walk-in"}</TableCell>
+                    <TableCell>{s.patient_name ?? (s.patient_id ?? s.patientId ? "Patient" : "Walk-in")}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{s.saleType ?? s.sale_type}</Badge></TableCell>
                     <TableCell className="capitalize text-sm">{s.paymentMethod ?? s.payment_method}</TableCell>
                     <TableCell className="font-mono font-medium">Rs. {Number(s.total).toFixed(2)}</TableCell>

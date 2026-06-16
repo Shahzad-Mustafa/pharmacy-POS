@@ -303,6 +303,7 @@ export const listMedicinesQueryPageDefault = 1;
 export const listMedicinesQueryPerPageDefault = 20;
 
 export const ListMedicinesQueryParams = zod.object({
+  "q": zod.coerce.string().optional().describe('Search by name, generic name, or brand'),
   "page": zod.coerce.number().default(listMedicinesQueryPageDefault),
   "per_page": zod.coerce.number().default(listMedicinesQueryPerPageDefault),
   "category": zod.coerce.string().optional(),

@@ -91,11 +91,34 @@ async def create_prescription(
 
 @router.get("/stats", summary="Prescription statistics")
 async def rx_stats(
-    branch_id: uuid.UUID = None, current_user: User = Depends(require_roles("admin", "manager", "super_admin")), db: AsyncSession = Depends(get_db)
+    branch_id: uuid.UUID = None, current_user: User = Depends(require_roles("admin", "manager", "pharmacist", "super_admin")), db: AsyncSession = Depends(get_db)
 ):
-    total = (await db.execute(select(func.count()).select_from(Prescription))).scalar_one()
-    dispensed = (await db.execute(select(func.count()).select_from(Prescription).where(Prescription.status == "dispensed"))).scalar_one()
-    return {"total": total, "dispensed": dispensed, "dispensing_rate": dispensed / total if total else 0}
+    base_filters = []
+    if branch_id:
+        base_filters.append(Prescription.branch_id == branch_id)
+
+    total = (await db.execute(
+        select(func.count()).select_from(Prescription).where(*base_filters) if base_filters
+        else select(func.count()).select_from(Prescription)
+    )).scalar_one()
+
+    statuses = ["received", "verified", "filled", "dispensed", "collected", "cancelled"]
+    by_status = {}
+    for st in statuses:
+        filters = [*base_filters, Prescription.status == st]
+        count = (await db.execute(select(func.count()).select_from(Prescription).where(*filters))).scalar_one()
+        by_status[st] = int(count)
+
+    dispensed = by_status.get("dispensed", 0) + by_status.get("collected", 0)
+    pending = by_status.get("received", 0) + by_status.get("verified", 0) + by_status.get("filled", 0)
+
+    return {
+        "total": total,
+        "dispensed": dispensed,
+        "pending": pending,
+        "dispensing_rate": dispensed / total if total else 0,
+        "by_status": by_status,
+    }
 
 
 @router.get("/{prescription_id}", response_model=PrescriptionResponse, summary="Get prescription")

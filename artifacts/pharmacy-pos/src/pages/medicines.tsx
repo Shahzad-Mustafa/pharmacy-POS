@@ -50,7 +50,7 @@ export default function Medicines() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useListMedicines({ category: categoryFilter || undefined, page, per_page: 20 });
+  const { data, isLoading } = useListMedicines({ q: search || undefined, category: categoryFilter || undefined, page, per_page: 20 });
   const { data: categories } = useGetMedicineCategories();
   const createMed = useCreateMedicine();
   const updateMed = useUpdateMedicine();

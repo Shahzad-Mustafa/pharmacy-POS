@@ -701,6 +701,7 @@ export declare const GetBranchStockSummaryResponse: zod.ZodObject<{
 export declare const listMedicinesQueryPageDefault = 1;
 export declare const listMedicinesQueryPerPageDefault = 20;
 export declare const ListMedicinesQueryParams: zod.ZodObject<{
+    q: zod.ZodOptional<zod.ZodString>;
     page: zod.ZodDefault<zod.ZodNumber>;
     per_page: zod.ZodDefault<zod.ZodNumber>;
     category: zod.ZodOptional<zod.ZodString>;
@@ -713,6 +714,7 @@ export declare const ListMedicinesQueryParams: zod.ZodObject<{
     page: number;
     per_page: number;
     is_active?: boolean | undefined;
+    q?: string | undefined;
     category?: string | undefined;
     manufacturer?: string | undefined;
     requires_prescription?: boolean | undefined;
@@ -722,6 +724,7 @@ export declare const ListMedicinesQueryParams: zod.ZodObject<{
     is_active?: boolean | undefined;
     page?: number | undefined;
     per_page?: number | undefined;
+    q?: string | undefined;
     category?: string | undefined;
     manufacturer?: string | undefined;
     requires_prescription?: boolean | undefined;
@@ -954,13 +957,13 @@ export declare const SearchMedicinesQueryParams: zod.ZodObject<{
     in_stock_only: zod.ZodOptional<zod.ZodBoolean>;
 }, "strip", zod.ZodTypeAny, {
     branch_id?: string | undefined;
-    barcode?: string | undefined;
     q?: string | undefined;
+    barcode?: string | undefined;
     in_stock_only?: boolean | undefined;
 }, {
     branch_id?: string | undefined;
-    barcode?: string | undefined;
     q?: string | undefined;
+    barcode?: string | undefined;
     in_stock_only?: boolean | undefined;
 }>;
 export declare const SearchMedicinesResponseItem: zod.ZodObject<{

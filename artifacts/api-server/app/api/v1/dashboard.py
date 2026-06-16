@@ -16,7 +16,7 @@ from app.models.prescription import Prescription
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-DASH_ROLES = ("admin", "manager", "super_admin")
+DASH_ROLES = ("admin", "manager", "pharmacist", "super_admin")
 
 
 @router.get("/overview", summary="Get dashboard overview")
@@ -165,6 +165,7 @@ async def top_medicines(
             "medicine_name": r.medicine_name,
             "category": r.category,
             "units_sold": int(r.units_sold or 0),
+            "quantity_sold": int(r.units_sold or 0),
             "revenue": float(r.revenue or 0),
             "rank": idx + 1,
         }

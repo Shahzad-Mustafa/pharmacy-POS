@@ -1,0 +1,5 @@
+- [FastAPI reserved-keyword params](fastapi-reserved-kw.md) — `from` is a Python keyword; use `Query(None, alias="from")` for date-range endpoints
+- [POS sale response nesting](pos-sale-response.md) — createSale backend returns `{ sale: SaleResponse, warnings, stock_updated }`, not bare SaleResponse; always extract with `data?.sale ?? data`
+- [Frontend camelCase/snake_case pattern](frontend-field-aliases.md) — every field read must use `med.requires_prescription ?? med.requiresPrescription` double-alias pattern throughout all pages
+- [Prescription selector in POS](pos-rx-selector.md) — Rx items in cart must block checkout (return after toast) and show patient-linked prescription dropdown via `useListPrescriptions({ patient_id })`
+- [Inventory batch admin branch](inventory-batch-branch.md) — Add Batch dialog must show branch selector when `user.branch_id` is undefined (admin users have no branch)

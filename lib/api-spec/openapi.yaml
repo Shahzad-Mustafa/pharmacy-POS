@@ -320,6 +320,11 @@ paths:
       tags: [medicines]
       summary: List medicines
       parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by name, generic name, or brand
         - name: page
           in: query
           schema:

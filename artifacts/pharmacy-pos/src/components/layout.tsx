@@ -11,29 +11,34 @@ import {
   History,
   Truck,
   Building2,
-  Settings,
+  BarChart2,
   LogOut,
   User as UserIcon,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/pos", label: "Point of Sale", icon: ShoppingCart },
-  { href: "/prescriptions", label: "Prescriptions", icon: FileText },
-  { href: "/medicines", label: "Medicines", icon: Pill },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/patients", label: "Patients", icon: Users },
-  { href: "/sales", label: "Sales History", icon: History },
-  { href: "/suppliers", label: "Suppliers", icon: Truck },
-  { href: "/branches", label: "Branches", icon: Building2 },
-  { href: "/users", label: "Staff", icon: UserIcon },
-  { href: "/reports", label: "Reports", icon: Settings },
+const ALL_NAV = [
+  { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard, roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/pos",           label: "Point of Sale", icon: ShoppingCart,    roles: null },
+  { href: "/prescriptions", label: "Prescriptions", icon: ClipboardList,   roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/medicines",     label: "Medicines",     icon: Pill,            roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/inventory",     label: "Inventory",     icon: Package,         roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/patients",      label: "Patients",      icon: Users,           roles: null },
+  { href: "/sales",         label: "Sales History", icon: History,         roles: null },
+  { href: "/suppliers",     label: "Suppliers",     icon: Truck,           roles: ["admin", "manager", "super_admin"] },
+  { href: "/branches",      label: "Branches",      icon: Building2,       roles: ["admin", "manager", "super_admin"] },
+  { href: "/users",         label: "Staff",         icon: UserIcon,        roles: ["admin", "super_admin"] },
+  { href: "/reports",       label: "Reports",       icon: BarChart2,       roles: ["admin", "manager", "pharmacist", "super_admin"] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+
+  const navItems = ALL_NAV.filter(
+    (item) => !item.roles || !user?.role || item.roles.includes(user.role)
+  );
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">

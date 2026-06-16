@@ -11,6 +11,7 @@ import {
   useListHeldSales,
   getListHeldSalesQueryKey,
   useListPrescriptions,
+  getListPrescriptionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -76,6 +77,11 @@ export default function POS() {
     { query: { enabled: debouncedPatientSearch.length >= 2, queryKey: ["searchPatients", debouncedPatientSearch] } }
   );
 
+  const { data: patientPrescriptions } = useListPrescriptions(
+    { patient_id: selectedPatient?.id },
+    { query: { enabled: !!selectedPatient?.id && cart.some((i) => i.requires_prescription), queryKey: getListPrescriptionsQueryKey({ patient_id: selectedPatient?.id }) } }
+  );
+
   const { data: heldSales } = useListHeldSales(
     { branch_id: user?.branch_id ?? undefined },
     { query: { queryKey: getListHeldSalesQueryKey({ branch_id: user?.branch_id ?? undefined }) } }
@@ -124,6 +130,7 @@ export default function POS() {
     if (cart.length === 0) { toast({ title: "Cart is empty", variant: "destructive" }); return; }
     if (needsRx && !selectedPrescription) {
       toast({ title: "Prescription required for some items", variant: "destructive" });
+      return;
     }
 
     createSale.mutate({
@@ -146,15 +153,18 @@ export default function POS() {
         notes: null,
       } as any,
     }, {
-      onSuccess: (sale: any) => {
-        setLastInvoice(sale.invoiceNumber ?? sale.invoice_number);
-        toast({ title: `Sale complete — ${sale.invoiceNumber ?? sale.invoice_number}` });
+      onSuccess: (data: any) => {
+        const saleObj = data?.sale ?? data;
+        const invoiceNum = saleObj?.invoiceNumber ?? saleObj?.invoice_number ?? "—";
+        setLastInvoice(invoiceNum);
+        toast({ title: `Sale complete — ${invoiceNum}` });
         setCart([]);
         setSelectedPatient(null);
         setSelectedPrescription(null);
         setGlobalDiscount(0);
         setAmountTendered("");
         setPaymentOpen(false);
+        queryClient.invalidateQueries({ queryKey: getListHeldSalesQueryKey() });
       },
       onError: () => toast({ title: "Sale failed", variant: "destructive" }),
     });
@@ -259,6 +269,39 @@ export default function POS() {
                 )}
               </div>
             </div>
+
+            {/* Prescription selector — shown when Rx items are in cart */}
+            {needsRx && (
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                {selectedPrescription ? (
+                  <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-primary/5 pl-9">
+                    <span className="text-sm font-medium flex-1">Rx #{selectedPrescription.prescriptionNumber ?? selectedPrescription.prescription_number ?? selectedPrescription.id.slice(0, 8)}</span>
+                    <button onClick={() => setSelectedPrescription(null)}><X className="h-4 w-4 text-muted-foreground" /></button>
+                  </div>
+                ) : !selectedPatient ? (
+                  <div className="pl-9 py-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md">
+                    Select a patient to link their prescription
+                  </div>
+                ) : (
+                  <Select onValueChange={(id) => {
+                    const rx = (Array.isArray((patientPrescriptions as any)?.data) ? (patientPrescriptions as any).data : []).find((r: any) => r.id === id);
+                    if (rx) setSelectedPrescription(rx);
+                  }}>
+                    <SelectTrigger className="pl-9" data-testid="select-prescription">
+                      <SelectValue placeholder="Link prescription..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Array.isArray((patientPrescriptions as any)?.data) ? (patientPrescriptions as any).data : []).map((rx: any) => (
+                        <SelectItem key={rx.id} value={rx.id}>
+                          Rx #{rx.prescriptionNumber ?? rx.prescription_number ?? rx.id.slice(0, 8)} — {rx.prescriberName ?? rx.prescriber_name ?? "Unknown"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

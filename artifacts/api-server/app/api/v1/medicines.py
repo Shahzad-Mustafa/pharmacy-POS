@@ -23,14 +23,14 @@ router = APIRouter(prefix="/medicines", tags=["Medicines"])
 @router.get("", summary="List medicines")
 async def list_medicines(
     page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100),
-    category: str = None, manufacturer: str = None,
+    q: str = None, category: str = None, manufacturer: str = None,
     requires_prescription: bool = None, is_active: bool = True,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     repo = MedicineRepository(db)
     medicines, total = await repo.search(
-        category=category, is_active=is_active,
+        q=q, category=category, is_active=is_active,
         requires_prescription=requires_prescription, page=page, per_page=per_page,
     )
     return paginate([MedicineResponse.model_validate(m).model_dump() for m in medicines], total, page, per_page)
