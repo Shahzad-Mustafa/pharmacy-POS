@@ -1,0 +1,1 @@
+{"version":3,"file":"listBatchesParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/listBatchesParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,iBAAiB,GAAG;IAChC,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,SAAS,CAAC,EAAE,OAAO,CAAC;IACpB,IAAI,CAAC,EAAE,MAAM,CAAC;CACb,CAAC"}

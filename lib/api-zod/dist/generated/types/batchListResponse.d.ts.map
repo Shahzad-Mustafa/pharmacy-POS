@@ -1,0 +1,1 @@
+{"version":3,"file":"batchListResponse.d.ts","sourceRoot":"","sources":["../../../src/generated/types/batchListResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,SAAS,CAAC;AACrC,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AAE/C,MAAM,WAAW,iBAAiB;IAChC,IAAI,EAAE,KAAK,EAAE,CAAC;IACd,UAAU,EAAE,UAAU,CAAC;CACxB"}

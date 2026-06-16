@@ -1,0 +1,1 @@
+{"version":3,"file":"supplierListResponse.d.ts","sourceRoot":"","sources":["../../../src/generated/types/supplierListResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AAC/C,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,YAAY,CAAC;AAE3C,MAAM,WAAW,oBAAoB;IACnC,IAAI,EAAE,QAAQ,EAAE,CAAC;IACjB,UAAU,EAAE,UAAU,CAAC;CACxB"}

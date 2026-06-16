@@ -1,0 +1,1 @@
+{"version":3,"file":"prescriptionListResponse.d.ts","sourceRoot":"","sources":["../../../src/generated/types/prescriptionListResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AAC/C,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,gBAAgB,CAAC;AAEnD,MAAM,WAAW,wBAAwB;IACvC,IAAI,EAAE,YAAY,EAAE,CAAC;IACrB,UAAU,EAAE,UAAU,CAAC;CACxB"}

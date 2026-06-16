@@ -1,0 +1,15 @@
+modules = ["nodejs-20", "python-3.12"]
+[nix]
+channel = "stable-25_05"
+packages = ["freetype", "glibcLocales", "libxcrypt", "postgresql"]
+
+[agent]
+expertMode = true
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 22987
+externalPort = 3000

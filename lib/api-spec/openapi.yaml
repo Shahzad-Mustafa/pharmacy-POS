@@ -1,0 +1,3293 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Pharmacy POS API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication & session management
+  - name: users
+    description: User & staff management
+  - name: branches
+    description: Branch / multi-location management
+  - name: medicines
+    description: Medicine / drug master
+  - name: inventory
+    description: Inventory management
+  - name: patients
+    description: Patient / customer management
+  - name: prescriptions
+    description: Prescription management
+  - name: sales
+    description: Point of sale / billing
+  - name: suppliers
+    description: Supplier & vendor management
+  - name: dashboard
+    description: Dashboard & KPIs
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── AUTH ──────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutInput"
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  # ── USERS ──────────────────────────────────────────────────
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{user_id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{user_id}/status:
+    patch:
+      operationId: updateUserStatus
+      tags: [users]
+      summary: Activate / deactivate user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserStatusUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # ── BRANCHES ──────────────────────────────────────────────────
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [branches]
+      summary: List branches
+      parameters:
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+    post:
+      operationId: createBranch
+      tags: [branches]
+      summary: Create branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+
+  /branches/{branch_id}:
+    get:
+      operationId: getBranch
+      tags: [branches]
+      summary: Get branch
+      parameters:
+        - name: branch_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+
+  /branches/{branch_id}/dashboard:
+    get:
+      operationId: getBranchDashboard
+      tags: [branches]
+      summary: Get branch dashboard KPIs
+      parameters:
+        - name: branch_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard KPIs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchDashboard"
+
+  /branches/{branch_id}/stock-summary:
+    get:
+      operationId: getBranchStockSummary
+      tags: [branches]
+      summary: Get branch stock summary
+      parameters:
+        - name: branch_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stock summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BranchStockSummary"
+
+  # ── MEDICINES ──────────────────────────────────────────────────
+  /medicines:
+    get:
+      operationId: listMedicines
+      tags: [medicines]
+      summary: List medicines
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: manufacturer
+          in: query
+          schema:
+            type: string
+        - name: requires_prescription
+          in: query
+          schema:
+            type: boolean
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated medicines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicineListResponse"
+    post:
+      operationId: createMedicine
+      tags: [medicines]
+      summary: Create medicine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicineInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medicine"
+
+  /medicines/search:
+    get:
+      operationId: searchMedicines
+      tags: [medicines]
+      summary: Search medicines
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: barcode
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: in_stock_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Medicine"
+
+  /medicines/low-stock:
+    get:
+      operationId: getLowStockMedicines
+      tags: [medicines]
+      summary: Get low-stock medicines
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: threshold
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Low stock medicines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LowStockMedicine"
+
+  /medicines/expiring-soon:
+    get:
+      operationId: getExpiringMedicines
+      tags: [medicines]
+      summary: Get expiring-soon medicines
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Expiring medicines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExpiringMedicine"
+
+  /medicines/categories:
+    get:
+      operationId: getMedicineCategories
+      tags: [medicines]
+      summary: Get medicine categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MedicineCategory"
+
+  /medicines/{medicine_id}:
+    get:
+      operationId: getMedicine
+      tags: [medicines]
+      summary: Get medicine detail
+      parameters:
+        - name: medicine_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Medicine
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medicine"
+    put:
+      operationId: updateMedicine
+      tags: [medicines]
+      summary: Update medicine
+      parameters:
+        - name: medicine_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicineUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medicine"
+    delete:
+      operationId: deactivateMedicine
+      tags: [medicines]
+      summary: Deactivate medicine
+      parameters:
+        - name: medicine_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── INVENTORY ──────────────────────────────────────────────────
+  /inventory:
+    get:
+      operationId: getInventoryOverview
+      tags: [inventory]
+      summary: Get inventory overview
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Inventory overview
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItem"
+
+  /inventory/batches:
+    get:
+      operationId: listBatches
+      tags: [inventory]
+      summary: List batches
+      parameters:
+        - name: medicine_id
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: has_stock
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Batches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchListResponse"
+    post:
+      operationId: createBatch
+      tags: [inventory]
+      summary: Create batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Batch"
+
+  /inventory/adjustments:
+    post:
+      operationId: createStockAdjustment
+      tags: [inventory]
+      summary: Create stock adjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockAdjustmentInput"
+      responses:
+        "201":
+          description: Adjustment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockAdjustment"
+    get:
+      operationId: listStockAdjustments
+      tags: [inventory]
+      summary: List stock adjustments
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Adjustments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockAdjustment"
+
+  /inventory/valuation:
+    get:
+      operationId: getStockValuation
+      tags: [inventory]
+      summary: Get stock valuation
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: method
+          in: query
+          schema:
+            type: string
+            default: fifo
+      responses:
+        "200":
+          description: Valuation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockValuation"
+
+  /inventory/reorder-suggestions:
+    get:
+      operationId: getReorderSuggestions
+      tags: [inventory]
+      summary: Get reorder suggestions
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: days_cover
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Reorder suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReorderSuggestion"
+
+  # ── PATIENTS ──────────────────────────────────────────────────
+  /patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List patients
+      parameters:
+        - name: customer_type
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Patients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientListResponse"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+
+  /patients/search:
+    get:
+      operationId: searchPatients
+      tags: [patients]
+      summary: Search patients
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: cnic
+          in: query
+          schema:
+            type: string
+        - name: phone
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+
+  /patients/{patient_id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get patient
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+    put:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update patient
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+
+  /patients/{patient_id}/history:
+    get:
+      operationId: getPatientHistory
+      tags: [patients]
+      summary: Get patient purchase history
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Purchase history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+
+  # ── PRESCRIPTIONS ──────────────────────────────────────────────────
+  /prescriptions:
+    get:
+      operationId: listPrescriptions
+      tags: [prescriptions]
+      summary: List prescriptions
+      parameters:
+        - name: patient_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Prescriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrescriptionListResponse"
+    post:
+      operationId: createPrescription
+      tags: [prescriptions]
+      summary: Create prescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrescriptionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/{prescription_id}:
+    get:
+      operationId: getPrescription
+      tags: [prescriptions]
+      summary: Get prescription
+      parameters:
+        - name: prescription_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Prescription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/{prescription_id}/verify:
+    post:
+      operationId: verifyPrescription
+      tags: [prescriptions]
+      summary: Verify prescription
+      parameters:
+        - name: prescription_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrescriptionVerifyInput"
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/{prescription_id}/dispense:
+    post:
+      operationId: dispensePrescription
+      tags: [prescriptions]
+      summary: Mark prescription as dispensed
+      parameters:
+        - name: prescription_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrescriptionDispenseInput"
+      responses:
+        "200":
+          description: Dispensed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prescription"
+
+  /prescriptions/stats:
+    get:
+      operationId: getPrescriptionStats
+      tags: [prescriptions]
+      summary: Get prescription statistics
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrescriptionStats"
+
+  # ── SALES ──────────────────────────────────────────────────
+  /sales:
+    post:
+      operationId: createSale
+      tags: [sales]
+      summary: Create sale
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleInput"
+      responses:
+        "201":
+          description: Sale created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+    get:
+      operationId: listSales
+      tags: [sales]
+      summary: List sales
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: patient_id
+          in: query
+          schema:
+            type: string
+        - name: sale_type
+          in: query
+          schema:
+            type: string
+        - name: payment_method
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Sales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleListResponse"
+
+  /sales/kpis:
+    get:
+      operationId: getSalesKpis
+      tags: [sales]
+      summary: Get sales KPIs
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: KPIs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesKpis"
+
+  /sales/daily-summary:
+    get:
+      operationId: getDailySummary
+      tags: [sales]
+      summary: Get daily summary
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailySummary"
+
+  /sales/held:
+    get:
+      operationId: listHeldSales
+      tags: [sales]
+      summary: List held sales
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Held sales
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+
+  /sales/calculate:
+    post:
+      operationId: calculateSale
+      tags: [sales]
+      summary: Calculate sale totals (dry-run)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleInput"
+      responses:
+        "200":
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleCalculation"
+
+  /sales/{sale_id}:
+    get:
+      operationId: getSale
+      tags: [sales]
+      summary: Get sale
+      parameters:
+        - name: sale_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+
+  /sales/{sale_id}/refund:
+    post:
+      operationId: refundSale
+      tags: [sales]
+      summary: Process refund
+      parameters:
+        - name: sale_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundInput"
+      responses:
+        "200":
+          description: Refund processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+
+  /sales/{sale_id}/hold:
+    post:
+      operationId: holdSale
+      tags: [sales]
+      summary: Hold sale
+      parameters:
+        - name: sale_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Held
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+
+  # ── SUPPLIERS ──────────────────────────────────────────────────
+  /suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      summary: List suppliers
+      parameters:
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Suppliers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierListResponse"
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      summary: Create supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+
+  /suppliers/{supplier_id}:
+    get:
+      operationId: getSupplier
+      tags: [suppliers]
+      summary: Get supplier
+      parameters:
+        - name: supplier_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+    put:
+      operationId: updateSupplier
+      tags: [suppliers]
+      summary: Update supplier
+      parameters:
+        - name: supplier_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+
+  /suppliers/purchase-orders:
+    get:
+      operationId: listPurchaseOrders
+      tags: [suppliers]
+      summary: List purchase orders
+      parameters:
+        - name: supplier_id
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Purchase orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrderListResponse"
+    post:
+      operationId: createPurchaseOrder
+      tags: [suppliers]
+      summary: Create purchase order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseOrderInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrder"
+
+  /suppliers/purchase-orders/{po_id}:
+    get:
+      operationId: getPurchaseOrder
+      tags: [suppliers]
+      summary: Get purchase order
+      parameters:
+        - name: po_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Purchase order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseOrder"
+
+  /suppliers/grn:
+    post:
+      operationId: createGrn
+      tags: [suppliers]
+      summary: Create GRN (Goods Received Note)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrnInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grn"
+    get:
+      operationId: listGrns
+      tags: [suppliers]
+      summary: List GRNs
+      parameters:
+        - name: supplier_id
+          in: query
+          schema:
+            type: string
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: GRNs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grn"
+
+  /suppliers/payables-aging:
+    get:
+      operationId: getPayablesAging
+      tags: [suppliers]
+      summary: Get payables aging report
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: as_of_date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Aging report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayablesAging"
+
+  # ── DASHBOARD ──────────────────────────────────────────────────
+  /dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      tags: [dashboard]
+      summary: Get dashboard overview
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+
+  /dashboard/alerts:
+    get:
+      operationId: getDashboardAlerts
+      tags: [dashboard]
+      summary: Get dashboard alerts
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardAlerts"
+
+  /dashboard/top-medicines:
+    get:
+      operationId: getTopMedicines
+      tags: [dashboard]
+      summary: Get top-selling medicines
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Top medicines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopMedicine"
+
+  /dashboard/revenue-trend:
+    get:
+      operationId: getRevenueTrend
+      tags: [dashboard]
+      summary: Get revenue trend (daily for last N days)
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Revenue trend
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenueTrendPoint"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+      required:
+        - page
+        - per_page
+        - total
+        - pages
+        - has_next
+        - has_prev
+
+    # ── AUTH ──────────────────────────────────────────────────
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        branch_id:
+          type: ["string", "null"]
+      required:
+        - email
+        - password
+
+    LogoutInput:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        branch_id:
+          type: ["string", "null"]
+        branch_name:
+          type: ["string", "null"]
+        permissions:
+          type: array
+          items:
+            type: string
+        last_login:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - email
+        - role
+        - permissions
+
+    # ── USERS ──────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        branch_id:
+          type: ["string", "null"]
+        branch_name:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+        - is_active
+        - permissions
+        - created_at
+
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+        branch_id:
+          type: string
+        phone:
+          type: ["string", "null"]
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        branch_id:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+
+    UserStatusUpdate:
+      type: object
+      properties:
+        is_active:
+          type: boolean
+        reason:
+          type: ["string", "null"]
+      required:
+        - is_active
+
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    # ── BRANCHES ──────────────────────────────────────────────────
+    Branch:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        license_number:
+          type: ["string", "null"]
+        manager_id:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        tax_rate:
+          type: number
+        mrp_enforcement:
+          type: boolean
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - code
+        - is_active
+        - created_at
+
+    BranchInput:
+      type: object
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        license_number:
+          type: ["string", "null"]
+        manager_id:
+          type: ["string", "null"]
+        tax_rate:
+          type: number
+        mrp_enforcement:
+          type: boolean
+      required:
+        - name
+        - code
+
+    BranchDashboard:
+      type: object
+      properties:
+        branch_id:
+          type: string
+        date:
+          type: string
+        today_revenue:
+          type: number
+        today_transactions:
+          type: integer
+        avg_basket:
+          type: number
+        yesterday_revenue:
+          type: number
+        weekly_revenue:
+          type: number
+        monthly_revenue:
+          type: number
+        top_cashier:
+          type: ["string", "null"]
+        top_medicine:
+          type: ["string", "null"]
+      required:
+        - branch_id
+        - date
+        - today_revenue
+        - today_transactions
+        - avg_basket
+
+    BranchStockSummary:
+      type: object
+      properties:
+        branch_id:
+          type: string
+        total_skus:
+          type: integer
+        total_batches:
+          type: integer
+        total_value:
+          type: number
+        low_stock_count:
+          type: integer
+        expiring_soon_count:
+          type: integer
+        out_of_stock_count:
+          type: integer
+      required:
+        - branch_id
+        - total_skus
+        - total_batches
+        - total_value
+        - low_stock_count
+        - expiring_soon_count
+        - out_of_stock_count
+
+    # ── MEDICINES ──────────────────────────────────────────────────
+    Medicine:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        generic_name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        manufacturer:
+          type: ["string", "null"]
+        strength:
+          type: ["string", "null"]
+        form:
+          type: ["string", "null"]
+        unit:
+          type: ["string", "null"]
+        pack_size:
+          type: ["integer", "null"]
+        barcode:
+          type: ["string", "null"]
+        mrp:
+          type: number
+        requires_prescription:
+          type: boolean
+        controlled_substance_schedule:
+          type: ["string", "null"]
+        is_essential_medicine:
+          type: boolean
+        is_active:
+          type: boolean
+        min_stock_level:
+          type: ["integer", "null"]
+        reorder_point:
+          type: ["integer", "null"]
+        storage_conditions:
+          type: ["string", "null"]
+        current_stock:
+          type: ["integer", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - mrp
+        - requires_prescription
+        - is_essential_medicine
+        - is_active
+        - created_at
+
+    MedicineInput:
+      type: object
+      properties:
+        name:
+          type: string
+        generic_name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        manufacturer:
+          type: ["string", "null"]
+        strength:
+          type: ["string", "null"]
+        form:
+          type: ["string", "null"]
+        unit:
+          type: ["string", "null"]
+        pack_size:
+          type: ["integer", "null"]
+        barcode:
+          type: ["string", "null"]
+        mrp:
+          type: number
+        requires_prescription:
+          type: boolean
+        is_essential_medicine:
+          type: boolean
+        min_stock_level:
+          type: ["integer", "null"]
+        reorder_point:
+          type: ["integer", "null"]
+        storage_conditions:
+          type: ["string", "null"]
+        composition:
+          type: ["string", "null"]
+        drap_registration_no:
+          type: ["string", "null"]
+      required:
+        - name
+        - mrp
+        - requires_prescription
+
+    MedicineUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        generic_name:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        mrp:
+          type: number
+        requires_prescription:
+          type: boolean
+        is_active:
+          type: boolean
+        min_stock_level:
+          type: ["integer", "null"]
+        reorder_point:
+          type: ["integer", "null"]
+
+    MedicineListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Medicine"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    LowStockMedicine:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: ["string", "null"]
+        current_stock:
+          type: integer
+        min_stock_level:
+          type: integer
+        reorder_point:
+          type: integer
+        branch_id:
+          type: string
+        branch_name:
+          type: string
+      required:
+        - id
+        - name
+        - current_stock
+        - min_stock_level
+        - reorder_point
+
+    ExpiringMedicine:
+      type: object
+      properties:
+        batch_id:
+          type: string
+        batch_number:
+          type: string
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        expiry_date:
+          type: string
+        days_until_expiry:
+          type: integer
+        quantity:
+          type: integer
+        branch_name:
+          type: string
+        urgency:
+          type: string
+      required:
+        - batch_id
+        - batch_number
+        - medicine_id
+        - medicine_name
+        - expiry_date
+        - days_until_expiry
+        - quantity
+
+    MedicineCategory:
+      type: object
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+      required:
+        - name
+        - count
+
+    # ── INVENTORY ──────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      properties:
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        category:
+          type: ["string", "null"]
+        total_qty:
+          type: integer
+        total_value:
+          type: number
+        batch_count:
+          type: integer
+        branch_id:
+          type: string
+      required:
+        - medicine_id
+        - medicine_name
+        - total_qty
+        - total_value
+        - batch_count
+
+    Batch:
+      type: object
+      properties:
+        id:
+          type: string
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        branch_id:
+          type: string
+        batch_number:
+          type: string
+        expiry_date:
+          type: string
+        manufacturing_date:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        purchase_price:
+          type: number
+        selling_price:
+          type: number
+        supplier_id:
+          type: ["string", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - medicine_id
+        - medicine_name
+        - branch_id
+        - batch_number
+        - expiry_date
+        - quantity
+        - purchase_price
+        - selling_price
+        - created_at
+
+    BatchInput:
+      type: object
+      properties:
+        medicine_id:
+          type: string
+        branch_id:
+          type: string
+        batch_number:
+          type: string
+        expiry_date:
+          type: string
+        manufacturing_date:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        purchase_price:
+          type: number
+        selling_price:
+          type: number
+        supplier_id:
+          type: ["string", "null"]
+      required:
+        - medicine_id
+        - branch_id
+        - batch_number
+        - expiry_date
+        - quantity
+        - purchase_price
+        - selling_price
+
+    BatchListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Batch"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    StockAdjustment:
+      type: object
+      properties:
+        id:
+          type: string
+        batch_id:
+          type: string
+        branch_id:
+          type: string
+        adjustment_type:
+          type: string
+        quantity_change:
+          type: integer
+        reason:
+          type: string
+        reference:
+          type: ["string", "null"]
+        created_by:
+          type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - batch_id
+        - branch_id
+        - adjustment_type
+        - quantity_change
+        - reason
+        - created_by
+        - created_at
+
+    StockAdjustmentInput:
+      type: object
+      properties:
+        batch_id:
+          type: string
+        branch_id:
+          type: string
+        adjustment_type:
+          type: string
+        quantity_change:
+          type: integer
+        reason:
+          type: string
+        reference:
+          type: ["string", "null"]
+      required:
+        - batch_id
+        - branch_id
+        - adjustment_type
+        - quantity_change
+        - reason
+
+    StockValuation:
+      type: object
+      properties:
+        branch_id:
+          type: ["string", "null"]
+        method:
+          type: string
+        total_cost_value:
+          type: number
+        total_mrp_value:
+          type: number
+        potential_profit:
+          type: number
+        breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine:
+                type: string
+              qty:
+                type: integer
+              cost:
+                type: number
+              mrp_value:
+                type: number
+            required:
+              - medicine
+              - qty
+              - cost
+              - mrp_value
+      required:
+        - method
+        - total_cost_value
+        - total_mrp_value
+        - potential_profit
+        - breakdown
+
+    ReorderSuggestion:
+      type: object
+      properties:
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        current_stock:
+          type: integer
+        avg_daily_consumption:
+          type: number
+        days_cover:
+          type: integer
+        suggested_qty:
+          type: integer
+        preferred_supplier:
+          type: ["string", "null"]
+        last_purchase_price:
+          type: ["number", "null"]
+      required:
+        - medicine_id
+        - medicine_name
+        - current_stock
+        - avg_daily_consumption
+        - days_cover
+        - suggested_qty
+
+    # ── PATIENTS ──────────────────────────────────────────────────
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        dob:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        cnic:
+          type: ["string", "null"]
+        allergies:
+          type: array
+          items:
+            type: string
+        chronic_conditions:
+          type: array
+          items:
+            type: string
+        chronic_medications:
+          type: array
+          items:
+            type: string
+        customer_type:
+          type: string
+        blood_group:
+          type: ["string", "null"]
+        insurance_provider_id:
+          type: ["string", "null"]
+        insurance_member_id:
+          type: ["string", "null"]
+        total_visits:
+          type: ["integer", "null"]
+        total_spend:
+          type: ["number", "null"]
+        last_visit:
+          type: ["string", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - customer_type
+        - allergies
+        - chronic_conditions
+        - chronic_medications
+        - created_at
+
+    PatientInput:
+      type: object
+      properties:
+        name:
+          type: string
+        dob:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        cnic:
+          type: ["string", "null"]
+        allergies:
+          type: array
+          items:
+            type: string
+        chronic_conditions:
+          type: array
+          items:
+            type: string
+        customer_type:
+          type: string
+        blood_group:
+          type: ["string", "null"]
+      required:
+        - name
+        - customer_type
+
+    PatientUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        dob:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        allergies:
+          type: array
+          items:
+            type: string
+        chronic_conditions:
+          type: array
+          items:
+            type: string
+
+    PatientListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    # ── PRESCRIPTIONS ──────────────────────────────────────────────────
+    PrescriptionItem:
+      type: object
+      properties:
+        medicine_id:
+          type: ["string", "null"]
+        drug_text:
+          type: string
+        dosage:
+          type: ["string", "null"]
+        frequency:
+          type: ["string", "null"]
+        duration:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        instructions:
+          type: ["string", "null"]
+      required:
+        - drug_text
+        - quantity
+
+    Prescription:
+      type: object
+      properties:
+        id:
+          type: string
+        patient_id:
+          type: ["string", "null"]
+        patient_name:
+          type: ["string", "null"]
+        doctor_id:
+          type: ["string", "null"]
+        prescriber_name:
+          type: ["string", "null"]
+        prescriber_license:
+          type: ["string", "null"]
+        prescription_date:
+          type: string
+        prescription_number:
+          type: ["string", "null"]
+        status:
+          type: string
+        source:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrescriptionItem"
+        notes:
+          type: ["string", "null"]
+        branch_id:
+          type: ["string", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - prescription_date
+        - status
+        - source
+        - items
+        - created_at
+
+    PrescriptionInput:
+      type: object
+      properties:
+        patient_id:
+          type: ["string", "null"]
+        doctor_id:
+          type: ["string", "null"]
+        prescriber_name:
+          type: ["string", "null"]
+        prescriber_license:
+          type: ["string", "null"]
+        prescription_date:
+          type: string
+        prescription_number:
+          type: ["string", "null"]
+        source:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrescriptionItem"
+        notes:
+          type: ["string", "null"]
+      required:
+        - prescription_date
+        - source
+        - items
+
+    PrescriptionVerifyInput:
+      type: object
+      properties:
+        notes:
+          type: ["string", "null"]
+        interaction_check_passed:
+          type: boolean
+        override_reason:
+          type: ["string", "null"]
+      required:
+        - interaction_check_passed
+
+    PrescriptionDispenseInput:
+      type: object
+      properties:
+        dispensed_to:
+          type: string
+        collection_notes:
+          type: ["string", "null"]
+      required:
+        - dispensed_to
+
+    PrescriptionListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Prescription"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    PrescriptionStats:
+      type: object
+      properties:
+        total_received:
+          type: integer
+        total_dispensed:
+          type: integer
+        dispensing_rate:
+          type: number
+        top_prescribed_medicines:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine_name:
+                type: string
+              count:
+                type: integer
+            required:
+              - medicine_name
+              - count
+        top_prescribers:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              count:
+                type: integer
+            required:
+              - name
+              - count
+      required:
+        - total_received
+        - total_dispensed
+        - dispensing_rate
+        - top_prescribed_medicines
+        - top_prescribers
+
+    # ── SALES ──────────────────────────────────────────────────
+    SaleItem:
+      type: object
+      properties:
+        id:
+          type: string
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        batch_id:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        unit_price:
+          type: number
+        discount_pct:
+          type: number
+        discount_flat:
+          type: number
+        line_total:
+          type: number
+      required:
+        - id
+        - medicine_id
+        - medicine_name
+        - quantity
+        - unit_price
+        - line_total
+
+    SaleItemInput:
+      type: object
+      properties:
+        medicine_id:
+          type: string
+        batch_id:
+          type: ["string", "null"]
+        quantity:
+          type: integer
+        unit_price:
+          type: number
+        discount_pct:
+          type: number
+        discount_flat:
+          type: number
+      required:
+        - medicine_id
+        - quantity
+        - unit_price
+
+    Sale:
+      type: object
+      properties:
+        id:
+          type: string
+        invoice_number:
+          type: string
+        branch_id:
+          type: string
+        patient_id:
+          type: ["string", "null"]
+        patient_name:
+          type: ["string", "null"]
+        prescription_id:
+          type: ["string", "null"]
+        sale_type:
+          type: string
+        cashier_id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleItem"
+        subtotal:
+          type: number
+        discount:
+          type: number
+        tax:
+          type: number
+        total:
+          type: number
+        payment_method:
+          type: string
+        amount_tendered:
+          type: ["number", "null"]
+        change:
+          type: ["number", "null"]
+        status:
+          type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - invoice_number
+        - branch_id
+        - sale_type
+        - cashier_id
+        - items
+        - subtotal
+        - discount
+        - tax
+        - total
+        - payment_method
+        - status
+        - created_at
+
+    SaleInput:
+      type: object
+      properties:
+        branch_id:
+          type: string
+        patient_id:
+          type: ["string", "null"]
+        prescription_id:
+          type: ["string", "null"]
+        sale_type:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleItemInput"
+        discount_on_invoice:
+          type: number
+        discount_pct_on_invoice:
+          type: number
+        tax_rate:
+          type: number
+        payment_method:
+          type: string
+        amount_tendered:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+      required:
+        - branch_id
+        - sale_type
+        - items
+        - payment_method
+
+    SaleResponse:
+      type: object
+      properties:
+        sale:
+          $ref: "#/components/schemas/Sale"
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              severity:
+                type: string
+              medicines:
+                type: array
+                items:
+                  type: string
+            required:
+              - type
+              - severity
+              - medicines
+        stock_updated:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine_id:
+                type: string
+              new_qty:
+                type: integer
+            required:
+              - medicine_id
+              - new_qty
+      required:
+        - sale
+        - warnings
+        - stock_updated
+
+    SaleListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sale"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    SalesKpis:
+      type: object
+      properties:
+        branch_id:
+          type: ["string", "null"]
+        date:
+          type: string
+        today_revenue:
+          type: number
+        today_transactions:
+          type: integer
+        avg_basket:
+          type: number
+        top_medicine:
+          type: ["string", "null"]
+        top_cashier:
+          type: ["string", "null"]
+        refunds_today:
+          type: number
+        net_revenue:
+          type: number
+      required:
+        - date
+        - today_revenue
+        - today_transactions
+        - avg_basket
+        - refunds_today
+        - net_revenue
+
+    DailySummary:
+      type: object
+      properties:
+        date:
+          type: string
+        branch_id:
+          type: ["string", "null"]
+        total_sales:
+          type: number
+        total_transactions:
+          type: integer
+        cash_sales:
+          type: number
+        card_sales:
+          type: number
+        credit_sales:
+          type: number
+        total_refunds:
+          type: number
+        net_revenue:
+          type: number
+        rx_sales:
+          type: integer
+        otc_sales:
+          type: integer
+      required:
+        - date
+        - total_sales
+        - total_transactions
+        - cash_sales
+        - card_sales
+        - credit_sales
+        - total_refunds
+        - net_revenue
+
+    SaleCalculation:
+      type: object
+      properties:
+        subtotal:
+          type: number
+        discount:
+          type: number
+        tax:
+          type: number
+        total:
+          type: number
+        change:
+          type: ["number", "null"]
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+        - subtotal
+        - discount
+        - tax
+        - total
+        - warnings
+
+    RefundInput:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sale_item_id:
+                type: string
+              quantity:
+                type: integer
+              reason:
+                type: string
+            required:
+              - sale_item_id
+              - quantity
+              - reason
+        refund_method:
+          type: string
+        restock:
+          type: boolean
+        notes:
+          type: ["string", "null"]
+      required:
+        - items
+        - refund_method
+        - restock
+
+    # ── SUPPLIERS ──────────────────────────────────────────────────
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        contact_person:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        license_number:
+          type: ["string", "null"]
+        credit_days:
+          type: ["integer", "null"]
+        payment_terms:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        outstanding_balance:
+          type: ["number", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - name
+        - is_active
+        - created_at
+
+    SupplierInput:
+      type: object
+      properties:
+        name:
+          type: string
+        contact_person:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        license_number:
+          type: ["string", "null"]
+        credit_days:
+          type: ["integer", "null"]
+        payment_terms:
+          type: ["string", "null"]
+      required:
+        - name
+
+    SupplierUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        contact_person:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        credit_days:
+          type: ["integer", "null"]
+
+    SupplierListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Supplier"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: string
+        po_number:
+          type: string
+        supplier_id:
+          type: string
+        supplier_name:
+          type: string
+        branch_id:
+          type: string
+        status:
+          type: string
+        order_date:
+          type: string
+        expected_date:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine_id:
+                type: string
+              medicine_name:
+                type: string
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+              total:
+                type: number
+            required:
+              - medicine_id
+              - medicine_name
+              - quantity
+              - unit_price
+              - total
+        total_amount:
+          type: number
+        notes:
+          type: ["string", "null"]
+        created_at:
+          type: string
+      required:
+        - id
+        - po_number
+        - supplier_id
+        - supplier_name
+        - branch_id
+        - status
+        - order_date
+        - items
+        - total_amount
+        - created_at
+
+    PurchaseOrderInput:
+      type: object
+      properties:
+        po_number:
+          type: ["string", "null"]
+        supplier_id:
+          type: string
+        branch_id:
+          type: string
+        order_date:
+          type: string
+        expected_date:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine_id:
+                type: string
+              quantity:
+                type: integer
+              unit_price:
+                type: number
+            required:
+              - medicine_id
+              - quantity
+              - unit_price
+        notes:
+          type: ["string", "null"]
+      required:
+        - supplier_id
+        - branch_id
+        - order_date
+        - items
+
+    PurchaseOrderListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PurchaseOrder"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - data
+        - pagination
+
+    Grn:
+      type: object
+      properties:
+        id:
+          type: string
+        grn_number:
+          type: string
+        po_id:
+          type: ["string", "null"]
+        supplier_id:
+          type: string
+        supplier_name:
+          type: string
+        branch_id:
+          type: string
+        received_date:
+          type: string
+        supplier_invoice_number:
+          type: ["string", "null"]
+        total_amount:
+          type: number
+        created_at:
+          type: string
+      required:
+        - id
+        - grn_number
+        - supplier_id
+        - supplier_name
+        - branch_id
+        - received_date
+        - total_amount
+        - created_at
+
+    GrnInput:
+      type: object
+      properties:
+        grn_number:
+          type: ["string", "null"]
+        po_id:
+          type: ["string", "null"]
+        supplier_id:
+          type: string
+        branch_id:
+          type: string
+        received_date:
+          type: string
+        supplier_invoice_number:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              medicine_id:
+                type: string
+              batch_number:
+                type: string
+              expiry_date:
+                type: string
+              quantity_received:
+                type: integer
+              purchase_price:
+                type: number
+              selling_price:
+                type: number
+            required:
+              - medicine_id
+              - batch_number
+              - expiry_date
+              - quantity_received
+              - purchase_price
+              - selling_price
+        notes:
+          type: ["string", "null"]
+      required:
+        - supplier_id
+        - branch_id
+        - received_date
+        - items
+
+    PayablesAging:
+      type: object
+      properties:
+        supplier_id:
+          type: string
+        supplier_name:
+          type: string
+        current:
+          type: number
+        days_0_30:
+          type: number
+        days_31_60:
+          type: number
+        days_61_90:
+          type: number
+        days_90_plus:
+          type: number
+        total_outstanding:
+          type: number
+      required:
+        - supplier_id
+        - supplier_name
+        - current
+        - days_0_30
+        - days_31_60
+        - days_61_90
+        - days_90_plus
+        - total_outstanding
+
+    # ── DASHBOARD ──────────────────────────────────────────────────
+    DashboardOverview:
+      type: object
+      properties:
+        period_revenue:
+          type: number
+        period_transactions:
+          type: integer
+        period_patients:
+          type: integer
+        period_prescriptions:
+          type: integer
+        avg_daily_revenue:
+          type: number
+        revenue_growth_pct:
+          type: ["number", "null"]
+        rx_vs_otc_ratio:
+          type: object
+          properties:
+            rx:
+              type: integer
+            otc:
+              type: integer
+          required:
+            - rx
+            - otc
+        retail_vs_hospital:
+          type: object
+          properties:
+            retail:
+              type: number
+            hospital:
+              type: number
+          required:
+            - retail
+            - hospital
+        payment_breakdown:
+          type: object
+          properties:
+            cash:
+              type: number
+            card:
+              type: number
+            credit:
+              type: number
+            insurance:
+              type: number
+          required:
+            - cash
+            - card
+            - credit
+            - insurance
+      required:
+        - period_revenue
+        - period_transactions
+        - period_patients
+        - period_prescriptions
+        - avg_daily_revenue
+        - rx_vs_otc_ratio
+        - retail_vs_hospital
+        - payment_breakdown
+
+    DashboardAlerts:
+      type: object
+      properties:
+        low_stock_count:
+          type: integer
+        expiring_soon_count:
+          type: integer
+        out_of_stock_count:
+          type: integer
+        pending_prescriptions:
+          type: integer
+        overdue_payables:
+          type: integer
+        expiring_in_7_days:
+          type: integer
+        expiring_in_30_days:
+          type: integer
+      required:
+        - low_stock_count
+        - expiring_soon_count
+        - out_of_stock_count
+        - pending_prescriptions
+        - overdue_payables
+        - expiring_in_7_days
+        - expiring_in_30_days
+
+    TopMedicine:
+      type: object
+      properties:
+        medicine_id:
+          type: string
+        medicine_name:
+          type: string
+        category:
+          type: ["string", "null"]
+        units_sold:
+          type: integer
+        revenue:
+          type: number
+        rank:
+          type: integer
+      required:
+        - medicine_id
+        - medicine_name
+        - units_sold
+        - revenue
+        - rank
+
+    RevenueTrendPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        revenue:
+          type: number
+        transactions:
+          type: integer
+        refunds:
+          type: number
+      required:
+        - date
+        - revenue
+        - transactions
+        - refunds

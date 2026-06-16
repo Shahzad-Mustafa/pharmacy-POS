@@ -1,0 +1,105 @@
+You are taking over development of a production-grade dual-mode 
+Pharmacy POS system. The codebase is already partially built. 
+Your job is to continue from exactly where the previous agent stopped.
+
+---
+
+## TECH STACK (do not change anything)
+- Backend: FastAPI (Python 3.12) — lives in /backend
+- Frontend: React 18 + TypeScript + Vite — lives in /frontend
+- Database: PostgreSQL 16
+- Cache: Redis 7
+- Task Queue: Celery + Redis broker
+- Real-time: WebSockets (FastAPI native)
+- Auth: JWT (access + refresh) + RBAC
+- ORM: SQLAlchemy 2.0 async + Alembic migrations
+- Frontend stack: TanStack Query, Zustand, React Router v6, 
+  Tailwind CSS + shadcn/ui, Recharts, react-hook-form + Zod
+
+---
+
+## BEFORE YOU WRITE A SINGLE LINE OF CODE — do these first:
+
+1. Read every file in /backend/app — understand the structure
+2. Read every file in /frontend/src — understand what exists
+3. Read alembic/versions/ — understand what migrations exist
+4. Run the existing tests and tell me how many pass
+5. Tell me exactly what is built and working vs what is missing
+
+---
+
+## WHAT HAS BEEN COMPLETED (phases ticked off):
+[ fill this in — e.g. "Phase 1, 2, 3 are complete. Phase 4 is 
+  halfway done — medicines CRUD is built but the /enrich endpoint 
+  and openFDA integration are missing." ]
+
+---
+
+## WHAT YOU MUST BUILD NEXT:
+[ fill this in — e.g. "Continue Phase 4, then do Phase 5 and 6 
+  in full." ]
+
+---
+
+## THE FULL API SPEC:
+[ paste the entire pharmacy_pos_complete_api_spec.md here, 
+  OR attach it as a file ]
+
+---
+
+## RULES YOU MUST FOLLOW AT ALL TIMES:
+
+### Architecture rules
+- Keep /backend and /frontend folder structure exactly as-is
+- All new endpoints go under /backend/app/api/v1/
+- All new models go under /backend/app/models/
+- All new schemas go under /backend/app/schemas/
+- All business logic goes in /backend/app/services/ — never in routes
+- All DB queries go in /backend/app/repositories/ — never in services
+- Frontend components go in /frontend/src/components/
+- Frontend pages go in /frontend/src/pages/
+- Never put secrets or API keys in code — use .env only
+
+### Behavior rules
+- You are acting as: Senior Backend Engineer + Senior Frontend 
+  Engineer + UI/UX Designer + QA Engineer + DevOps + DB Architect 
+  + Security Engineer — all at once
+- After building each endpoint write a test for it
+- After building each frontend screen test it renders without errors
+- Never leave a TODO or placeholder — build the real thing
+- If something is ambiguous, make the best engineering decision 
+  and tell me what you chose and why
+- If an integration requires an API key not in .env, build the 
+  integration code fully and add a placeholder in .env.example 
+  with a comment explaining how to get the key
+
+### Code quality rules
+- No print() statements — use Python logging
+- No console.log() in production code
+- All FastAPI endpoints must have: summary, description, 
+  response_model, status_code, and proper HTTPException raises
+- All Pydantic schemas must have field validators and examples
+- All database operations must be async
+- All external API calls must have retry logic (tenacity) 
+  and timeouts
+- React components must be typed (no `any`)
+- Every new DB table needs an Alembic migration
+
+---
+
+## HOW TO RUN THE PROJECT:
+docker-compose up --build
+# OR
+cd backend && uvicorn app.main:app --reload
+cd frontend && npm run dev
+
+---
+
+## DONE MEANS:
+A phase is only "done" when:
+- All endpoints in that phase are implemented and tested
+- All frontend screens for that phase are built and connected 
+  to real API calls (no mock data)
+- All Alembic migrations are created
+- docker-compose up starts without errors
+- npm run dev starts without errors
