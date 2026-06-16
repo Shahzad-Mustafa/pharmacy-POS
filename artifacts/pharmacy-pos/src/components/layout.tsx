@@ -7,7 +7,6 @@ import {
   Pill,
   Package,
   Users,
-  FileText,
   History,
   Truck,
   Building2,
@@ -15,6 +14,9 @@ import {
   LogOut,
   User as UserIcon,
   ClipboardList,
+  ShieldCheck,
+  Settings,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +32,9 @@ const ALL_NAV = [
   { href: "/branches",      label: "Branches",      icon: Building2,       roles: ["admin", "manager", "super_admin"] },
   { href: "/users",         label: "Staff",         icon: UserIcon,        roles: ["admin", "super_admin"] },
   { href: "/reports",       label: "Reports",       icon: BarChart2,       roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/insurance",     label: "Insurance",     icon: ShieldCheck,     roles: ["admin", "manager", "pharmacist", "super_admin"] },
+  { href: "/notifications", label: "Notifications", icon: Bell,            roles: null },
+  { href: "/settings",      label: "Settings",      icon: Settings,        roles: ["admin", "super_admin"] },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

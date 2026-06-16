@@ -10,6 +10,7 @@ from app.config import settings
 from app.database import init_db
 from app.api.v1.router import api_router
 from app.api.v1.websockets import ws_router
+from app.core.redis import get_redis, close_redis
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +28,9 @@ async def lifespan(app: FastAPI):
             logger.info("Database initialised")
         except Exception as e:
             logger.error(f"Database init failed: {e}")
+    await get_redis()
     yield
+    await close_redis()
     logger.info("Shutting down")
 
 
@@ -65,10 +68,19 @@ app.include_router(ws_router)
 
 @app.get(f"{BASE_PATH}/healthz", tags=["Health"], summary="Health check")
 async def healthz():
+    redis_status = "not_configured"
+    try:
+        from app.core.redis import get_redis
+        r = await get_redis()
+        if r:
+            await r.ping()
+            redis_status = "connected"
+    except Exception:
+        redis_status = "error"
     return {
         "status": "healthy",
         "database": "connected",
-        "redis": "not_configured",
+        "redis": redis_status,
         "celery": "not_running",
         "version": settings.VERSION,
     }

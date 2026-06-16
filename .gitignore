@@ -1,0 +1,80 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+artifacts/api-server/.env
+artifacts/pharmacy-pos/.env
+
+# Node
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.nuxt/
+.output/
+
+# Vite build output
+artifacts/pharmacy-pos/dist/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# Alembic
+artifacts/api-server/alembic2/
+
+# Docker local volumes
+postgres_data/
+redis_data/
+
+# Replit / platform files (never commit these)
+.replit
+replit.nix
+replit.md
+uv.lock
+.agents/
+.local/
+.cache/
+artifacts/mockup-sandbox/
+artifacts/*/.replit-artifact/
+attached_assets/
+
+# Zip / archives
+*.zip
+*.tar.gz
+*.rar
+
+# Temp / OS
+*.tmp
+*.bak
+*.orig

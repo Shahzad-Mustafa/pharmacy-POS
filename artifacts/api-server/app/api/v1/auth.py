@@ -27,7 +27,18 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
 
 
 @router.post("/logout", response_model=MessageResponse, summary="Logout", description="Blacklist the refresh token")
-async def logout(body: LogoutRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def logout(body: LogoutRequest, request: Request, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    svc = AuthService(db)
+    access_jti = ""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            from app.core.security import decode_token as _dt
+            payload = _dt(auth_header[7:])
+            access_jti = payload.get("jti", "")
+        except Exception:
+            pass
+    await svc.logout(access_jti, body.refresh_token)
     return {"message": "Logged out successfully"}
 
 
@@ -74,7 +85,10 @@ async def list_sessions(current_user: User = Depends(get_current_user)):
 
 
 @router.delete("/sessions/{jti}", response_model=MessageResponse, summary="Revoke specific session")
-async def revoke_session(jti: str, current_user: User = Depends(get_current_user)):
+async def revoke_session(jti: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    svc = AuthService(db)
+    from app.config import settings
+    await svc.blacklist_token(jti, settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400)
     return {"message": "Session revoked"}
 
 

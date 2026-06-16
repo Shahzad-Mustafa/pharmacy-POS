@@ -17,6 +17,9 @@ import Suppliers from "@/pages/suppliers";
 import Branches from "@/pages/branches";
 import Users from "@/pages/users";
 import Reports from "@/pages/reports";
+import Insurance from "@/pages/insurance";
+import Settings from "@/pages/settings";
+import Notifications from "@/pages/notifications";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -60,6 +63,9 @@ function Router() {
       <Route path="/branches">{() => <ProtectedRoute component={Branches} />}</Route>
       <Route path="/users">{() => <ProtectedRoute component={Users} />}</Route>
       <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
+      <Route path="/insurance">{() => <ProtectedRoute component={Insurance} />}</Route>
+      <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
+      <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

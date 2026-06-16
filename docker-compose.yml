@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rxpos
+      POSTGRES_USER: rxpos
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rxpos_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rxpos -d rxpos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: artifacts/api-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://rxpos:${DB_PASSWORD:-rxpos_dev_password}@db:5432/rxpos
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production-32chars+}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER:-}
+      OPENFDA_API_KEY: ${OPENFDA_API_KEY:-}
+      BASE_PATH: /api
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./artifacts/api-server:/app
+    working_dir: /app
+    command: >
+      sh -c "alembic upgrade head &&
+             python seed.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: artifacts/api-server/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://rxpos:${DB_PASSWORD:-rxpos_dev_password}@db:5432/rxpos
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production-32chars+}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./artifacts/api-server:/app
+    working_dir: /app
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+
+  frontend:
+    build:
+      context: .
+      dockerfile: artifacts/pharmacy-pos/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "5173"
+      BASE_PATH: "/"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

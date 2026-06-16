@@ -12,8 +12,12 @@ from app.core.security import (
     create_refresh_token, decode_token, validate_password_strength,
 )
 from app.repositories.user_repo import UserRepository, AuditLogRepository
+from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
+
+_LOCKOUT_PREFIX = "login_fail:"
+_BLACKLIST_PREFIX = "token:blacklist:"
 
 
 class AuthService:
@@ -22,14 +26,54 @@ class AuthService:
         self.repo = UserRepository(db)
         self.audit = AuditLogRepository(db)
 
+    async def _check_rate_limit(self, email: str) -> None:
+        redis = await get_redis()
+        if redis is None:
+            return
+        key = f"{_LOCKOUT_PREFIX}{email.lower()}"
+        count = await redis.get(key)
+        if count and int(count) >= settings.LOGIN_MAX_ATTEMPTS:
+            raise AuthError("TOO_MANY_ATTEMPTS", f"Account locked after {settings.LOGIN_MAX_ATTEMPTS} failed attempts. Try again in {settings.LOGIN_LOCKOUT_MINUTES} minutes.")
+
+    async def _record_fail(self, email: str) -> None:
+        redis = await get_redis()
+        if redis is None:
+            return
+        key = f"{_LOCKOUT_PREFIX}{email.lower()}"
+        ttl = settings.LOGIN_LOCKOUT_MINUTES * 60
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, ttl)
+
+    async def _clear_fail(self, email: str) -> None:
+        redis = await get_redis()
+        if redis is None:
+            return
+        await redis.delete(f"{_LOCKOUT_PREFIX}{email.lower()}")
+
+    async def blacklist_token(self, jti: str, ttl_seconds: int) -> None:
+        redis = await get_redis()
+        if redis is None:
+            return
+        await redis.set(f"{_BLACKLIST_PREFIX}{jti}", "1", ex=ttl_seconds)
+
+    async def is_token_blacklisted(self, jti: str) -> bool:
+        redis = await get_redis()
+        if redis is None:
+            return False
+        return bool(await redis.exists(f"{_BLACKLIST_PREFIX}{jti}"))
+
     async def login(self, email: str, password: str, ip: str = None, ua: str = None) -> dict:
+        await self._check_rate_limit(email)
+
         user = await self.repo.get_by_email(email)
-        if not user:
+        if not user or not verify_password(password, user.hashed_password):
+            await self._record_fail(email)
             raise AuthError("INVALID_CREDENTIALS", "Invalid email or password")
         if not user.is_active:
             raise AuthError("ACCOUNT_DISABLED", "Account is disabled")
-        if not verify_password(password, user.hashed_password):
-            raise AuthError("INVALID_CREDENTIALS", "Invalid email or password")
+
+        await self._clear_fail(email)
 
         user.last_login = datetime.now(timezone.utc)
         await self.db.flush()
@@ -43,9 +87,12 @@ class AuthService:
             entity_id=str(user.id), ip=ip, ua=ua,
         )
 
-        branch_info = None
-        if user.branch_id and user.branch:
-            branch_info = {"id": str(user.branch.id), "name": user.branch.name}
+        branch_name = None
+        try:
+            if user.branch_id and user.branch:
+                branch_name = user.branch.name
+        except Exception:
+            pass
 
         from app.dependencies import ROLE_PERMISSIONS
         role_perms = list(ROLE_PERMISSIONS.get(user.role, set()))
@@ -61,19 +108,38 @@ class AuthService:
                 "role": user.role,
                 "email": user.email,
                 "branch_id": str(user.branch_id) if user.branch_id else None,
-                "branch_name": branch_info["name"] if branch_info else None,
+                "branch_name": branch_name,
                 "permissions": user.permissions or role_perms,
             },
         }
 
-    async def refresh(self, refresh_token: str) -> dict:
+    async def logout(self, access_jti: str, refresh_token: str) -> None:
         try:
             payload = decode_token(refresh_token)
+            refresh_jti = payload.get("jti", "")
+            exp = payload.get("exp", 0)
+            ttl = max(0, int(exp - datetime.now(timezone.utc).timestamp()))
+            if refresh_jti:
+                await self.blacklist_token(refresh_jti, ttl)
+        except Exception:
+            pass
+        if access_jti:
+            await self.blacklist_token(access_jti, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+
+    async def refresh(self, refresh_token_str: str) -> dict:
+        try:
+            payload = decode_token(refresh_token_str)
             if payload.get("type") != "refresh":
                 raise AuthError("TOKEN_INVALID", "Invalid token type")
+            jti = payload.get("jti", "")
             user_id = payload.get("sub")
+        except AuthError:
+            raise
         except Exception:
             raise AuthError("TOKEN_INVALID", "Invalid or expired refresh token")
+
+        if jti and await self.is_token_blacklisted(jti):
+            raise AuthError("TOKEN_REVOKED", "Token has been revoked")
 
         user = await self.repo.get(uuid.UUID(user_id))
         if not user or not user.is_active:

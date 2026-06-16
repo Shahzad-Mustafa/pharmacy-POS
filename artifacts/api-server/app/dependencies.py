@@ -70,7 +70,6 @@ async def _resolve_user_from_token(
     credentials: Optional[HTTPAuthorizationCredentials],
     db: AsyncSession,
 ) -> Optional[User]:
-    """Shared token→user resolution logic."""
     if not credentials:
         return None
     token = credentials.credentials
@@ -78,13 +77,23 @@ async def _resolve_user_from_token(
         payload = decode_token(token)
         user_id = payload.get("sub")
         token_type = payload.get("type")
+        jti = payload.get("jti", "")
         if not user_id or token_type != "access":
             return None
     except JWTError:
         return None
 
+    # Check Redis blacklist (gracefully skip if Redis is down)
+    if jti:
+        try:
+            from app.core.redis import get_redis
+            redis = await get_redis()
+            if redis and await redis.exists(f"token:blacklist:{jti}"):
+                return None
+        except Exception:
+            pass
+
     repo = UserRepository(db)
-    # sub is stored as UUID string
     try:
         user = await repo.get(_uuid_mod.UUID(user_id))
     except Exception:
