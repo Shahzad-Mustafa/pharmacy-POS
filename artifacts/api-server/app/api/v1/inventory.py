@@ -67,13 +67,25 @@ async def get_inventory(
 @router.get("/batches", summary="List batches")
 async def list_batches(
     medicine_id: uuid.UUID = None, branch_id: uuid.UUID = None, supplier_id: uuid.UUID = None,
-    has_stock: bool = None, page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100),
+    has_stock: bool = None, page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=1000),
     current_user: User = Depends(require_roles(*INVENTORY_ROLES)),
     db: AsyncSession = Depends(get_db),
 ):
     repo = BatchRepository(db)
     batches, total = await repo.list_batches(medicine_id=medicine_id, branch_id=branch_id, supplier_id=supplier_id, has_stock=has_stock, page=page, per_page=per_page)
-    return paginate([BatchResponse.model_validate(b).model_dump() for b in batches], total, page, per_page)
+    from sqlalchemy import select as _sel
+    from app.models.medicine import Medicine as _Med
+    med_ids = [b.medicine_id for b in batches]
+    med_names: dict = {}
+    if med_ids:
+        rows = (await db.execute(_sel(_Med.id, _Med.name).where(_Med.id.in_(med_ids)))).all()
+        med_names = {r[0]: r[1] for r in rows}
+    dicts = []
+    for b in batches:
+        d = BatchResponse.model_validate(b).model_dump()
+        d["medicine_name"] = med_names.get(b.medicine_id)
+        dicts.append(d)
+    return paginate(dicts, total, page, per_page)
 
 
 @router.post("/batches", response_model=BatchResponse, status_code=status.HTTP_201_CREATED, summary="Create batch")
@@ -230,10 +242,16 @@ async def reorder_suggestions(
     current_user: User = Depends(require_roles("admin", "manager", "super_admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import select, func
+    from datetime import date, timedelta
+    from sqlalchemy import select, func, or_, and_
     from app.models.medicine import Medicine
     from app.models.inventory import MedicineBatch
-    query = (
+
+    today = date.today()
+    expiry_threshold = today + timedelta(days=90)
+
+    # ── 1. Low stock: total qty ≤ reorder_point ──────────────────────────────
+    low_stock_q = (
         select(Medicine, func.coalesce(func.sum(MedicineBatch.quantity), 0).label("qty"))
         .join(MedicineBatch, MedicineBatch.medicine_id == Medicine.id, isouter=True)
         .where(Medicine.is_active == True)
@@ -241,21 +259,106 @@ async def reorder_suggestions(
         .having(func.coalesce(func.sum(MedicineBatch.quantity), 0) <= Medicine.reorder_point)
     )
     if branch_id:
-        query = query.where(MedicineBatch.branch_id == branch_id)
-    result = await db.execute(query)
-    return [
-        {
-            "medicine_id": str(r[0].id),
-            "medicine_name": r[0].name,
-            "current_stock": int(r[1]),
-            "avg_daily_consumption": 0.0,
-            "days_cover": int(r[1]) // max(1, r[0].reorder_point),
-            "suggested_qty": max(r[0].reorder_point * 2 - int(r[1]), r[0].min_stock_level),
-            "preferred_supplier": None,
-            "last_purchase_price": None,
-        }
-        for r in result.fetchall()
-    ]
+        low_stock_q = low_stock_q.where(MedicineBatch.branch_id == branch_id)
+
+    low_stock_rows = (await db.execute(low_stock_q)).fetchall()
+    low_stock_ids = {r[0].id for r in low_stock_rows}
+
+    # ── 2. Expiring / Expired batches with stock remaining ───────────────────
+    expiry_q = (
+        select(MedicineBatch, Medicine)
+        .join(Medicine, Medicine.id == MedicineBatch.medicine_id)
+        .where(
+            Medicine.is_active == True,
+            MedicineBatch.quantity > 0,
+            MedicineBatch.expiry_date.isnot(None),
+            MedicineBatch.expiry_date <= expiry_threshold,
+        )
+    )
+    if branch_id:
+        expiry_q = expiry_q.where(MedicineBatch.branch_id == branch_id)
+
+    expiry_rows = (await db.execute(expiry_q)).fetchall()
+
+    # Group expiry batches by medicine_id → pick earliest expiry + sum qty
+    expiry_map: dict = {}  # medicine_id → {medicine, earliest_expiry, expiry_qty}
+    for batch, med in expiry_rows:
+        mid = med.id
+        if mid not in expiry_map:
+            expiry_map[mid] = {"medicine": med, "earliest_expiry": batch.expiry_date, "expiry_qty": 0}
+        if batch.expiry_date < expiry_map[mid]["earliest_expiry"]:
+            expiry_map[mid]["earliest_expiry"] = batch.expiry_date
+        expiry_map[mid]["expiry_qty"] += batch.quantity
+
+    # ── 3. Merge both sets, deduplicate by medicine_id ───────────────────────
+    results = []
+    seen_ids: set = set()
+
+    # Low-stock entries first
+    for med, qty in low_stock_rows:
+        seen_ids.add(med.id)
+        exp_info = expiry_map.get(med.id)
+        earliest = exp_info["earliest_expiry"] if exp_info else None
+        days_left = (earliest - today).days if earliest else None
+        urgency = (
+            "critical" if int(qty) == 0 or (days_left is not None and days_left <= 30)
+            else "warning"
+        )
+        results.append({
+            "medicine_id": str(med.id),
+            "medicine_name": med.name,
+            "category": med.category or "—",
+            "current_stock": int(qty),
+            "quantity": int(qty),
+            "reorder_point": med.reorder_point,
+            "min_stock_level": med.min_stock_level,
+            "suggested_order_qty": max(med.reorder_point * 2 - int(qty), med.min_stock_level or 50),
+            "reason": "low_stock",
+            "urgency": urgency,
+            "nearest_expiry": earliest.isoformat() if earliest else None,
+            "days_until_expiry": days_left,
+            "expiry_qty": exp_info["expiry_qty"] if exp_info else None,
+        })
+
+    # Expiry-only entries (not already in low-stock list)
+    for mid, info in expiry_map.items():
+        if mid in seen_ids:
+            # Already added above — patch in expiry info (already done)
+            continue
+        med = info["medicine"]
+        earliest = info["earliest_expiry"]
+        days_left = (earliest - today).days
+        urgency = "critical" if days_left <= 30 else "warning"
+        # Get total stock for this medicine
+        stock_r = await db.execute(
+            select(func.coalesce(func.sum(MedicineBatch.quantity), 0))
+            .where(MedicineBatch.medicine_id == mid, MedicineBatch.quantity > 0)
+        )
+        total_stock = int(stock_r.scalar_one())
+        results.append({
+            "medicine_id": str(med.id),
+            "medicine_name": med.name,
+            "category": med.category or "—",
+            "current_stock": total_stock,
+            "quantity": total_stock,
+            "reorder_point": med.reorder_point,
+            "min_stock_level": med.min_stock_level,
+            "suggested_order_qty": med.min_stock_level or 50,
+            "reason": "expiry",
+            "urgency": urgency,
+            "nearest_expiry": earliest.isoformat(),
+            "days_until_expiry": days_left,
+            "expiry_qty": info["expiry_qty"],
+        })
+
+    # Sort: critical first, then warning; within same urgency by days_until_expiry asc
+    def sort_key(r):
+        urgency_order = 0 if r["urgency"] == "critical" else 1
+        expiry_order = r["days_until_expiry"] if r["days_until_expiry"] is not None else 9999
+        return (urgency_order, expiry_order)
+
+    results.sort(key=sort_key)
+    return results
 
 
 @router.post("/fefo-preview", summary="FEFO allocation preview")

@@ -54,6 +54,9 @@ export default function Login() {
       { data },
       {
         onSuccess: (response) => {
+          if (response.refresh_token) {
+            localStorage.setItem("refresh_token", response.refresh_token);
+          }
           login(response.access_token, response.user);
         },
         onError: (err: any) => {

@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Package, FileText } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: any; color: string }> = {
   received:  { label: "Received",  variant: "outline",     color: "text-yellow-600 border-yellow-300 bg-yellow-50" },
@@ -71,10 +72,12 @@ export default function Prescriptions() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Prescription Queue</h1>
-        <p className="text-muted-foreground mt-1">Manage and dispense prescriptions</p>
-      </div>
+      <PageHeader
+        title="Prescription Queue"
+        subtitle="Manage and dispense prescriptions"
+        icon={FileText}
+        gradient="from-cyan-600 via-cyan-500 to-teal-500"
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {Object.entries(STATUS_CONFIG).map(([status, cfg]) => (
@@ -113,6 +116,8 @@ export default function Prescriptions() {
           {isLoading ? (
             <div className="p-6 space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
           ) : (
+            <div className="overflow-x-auto">
+
             <Table>
               <TableHeader>
                 <TableRow>
@@ -162,6 +167,8 @@ export default function Prescriptions() {
                 })}
               </TableBody>
             </Table>
+
+            </div>
           )}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t">

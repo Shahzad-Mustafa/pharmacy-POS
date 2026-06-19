@@ -22,7 +22,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit } from "lucide-react";
+import { Plus, Edit, UserCog } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 const ROLES = ["admin", "pharmacist", "cashier", "manager", "super_admin"];
 
@@ -102,15 +103,17 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-          <p className="text-muted-foreground mt-1">{total} staff accounts</p>
-        </div>
-        <Button onClick={openCreate} data-testid="button-add-user">
-          <Plus className="h-4 w-4 mr-2" /> Add Staff
-        </Button>
-      </div>
+      <PageHeader
+        title="Staff Management"
+        subtitle={`${total} staff accounts`}
+        icon={UserCog}
+        gradient="from-rose-600 via-rose-500 to-pink-500"
+        actions={
+          <Button className="bg-white text-rose-700 hover:bg-rose-50 font-semibold" onClick={openCreate} data-testid="button-add-user">
+            <Plus className="h-4 w-4 mr-2" /> Add Staff
+          </Button>
+        }
+      />
 
       <Card>
         <div className="p-4 border-b">
@@ -128,14 +131,14 @@ export default function Users() {
           {isLoading ? (
             <div className="p-6 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Last Login</TableHead>
+                  <TableHead className="hidden md:table-cell">Branch</TableHead>
+                  <TableHead className="hidden lg:table-cell">Last Login</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -146,10 +149,10 @@ export default function Users() {
                 ) : users.map((u: any) => (
                   <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
                     <TableCell className="font-medium">{u.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{u.email}</TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{u.role}</Badge></TableCell>
-                    <TableCell className="text-sm">{u.branch_name ?? "All"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm">{u.branch_name ?? "All"}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {u.lastLogin ?? u.last_login ? new Date(u.lastLogin ?? u.last_login).toLocaleDateString() : "Never"}
                     </TableCell>
                     <TableCell>
@@ -167,7 +170,7 @@ export default function Users() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t">

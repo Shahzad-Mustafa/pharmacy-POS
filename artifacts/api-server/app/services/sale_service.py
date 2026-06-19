@@ -136,12 +136,41 @@ class SaleService:
         await self.db.flush()
         await self.db.refresh(sale)
 
+        await self._create_low_stock_notifications(resolved_items, branch_id)
+
         result = await self.sale_repo.get_with_items(sale.id)
         return {
             "sale": result,
             "warnings": warnings,
             "stock_updated": stock_updates,
         }
+
+    async def _create_low_stock_notifications(self, resolved_items: list, branch_id) -> None:
+        try:
+            from app.models.notification import Notification
+            from app.models.user import User
+            from sqlalchemy import select as _select
+            admins = (await self.db.execute(
+                _select(User).where(User.role.in_(["admin", "super_admin", "manager"]), User.is_active == True)
+            )).scalars().all()
+            for item in resolved_items:
+                med = item["medicine"]
+                batch = item["batch"]
+                remaining = batch.quantity
+                threshold = med.min_stock_level or 10
+                if remaining <= threshold:
+                    for admin in admins:
+                        notif = Notification(
+                            user_id=admin.id,
+                            type="low_stock",
+                            channel="inapp",
+                            title=f"Low Stock: {med.name}",
+                            message=f"{med.name} stock is low — only {remaining} unit(s) remaining (threshold: {threshold}).",
+                            data={"medicine_id": str(med.id), "medicine_name": med.name, "remaining": remaining, "threshold": threshold},
+                        )
+                        self.db.add(notif)
+        except Exception as e:
+            logger.warning(f"Low-stock notification failed: {e}")
 
     async def process_refund(self, sale_id: uuid.UUID, data: dict, user_id: uuid.UUID) -> Sale:
         sale = await self.sale_repo.get_with_items(sale_id)
@@ -178,7 +207,7 @@ class SaleService:
                 raise BadRequestError("ITEM_NOT_FOUND", f"Sale item {refund_item['sale_item_id']} not found")
             if refund_item["quantity"] > orig_item.quantity:
                 raise BadRequestError("REFUND_EXCEEDS_SOLD", "Refund quantity exceeds sold quantity")
-            unit_refund = (orig_item.line_total / orig_item.quantity) * refund_item["quantity"]
+            unit_refund = float(orig_item.line_total) / orig_item.quantity * refund_item["quantity"]
             refund_total += unit_refund
             ri = SaleItem(
                 sale_id=refund_sale.id,

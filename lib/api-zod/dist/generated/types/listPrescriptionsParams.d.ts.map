@@ -1,1 +1,0 @@
-{"version":3,"file":"listPrescriptionsParams.d.ts","sourceRoot":"","sources":["../../../src/generated/types/listPrescriptionsParams.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,MAAM,uBAAuB,GAAG;IACtC,UAAU,CAAC,EAAE,MAAM,CAAC;IACpB,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,IAAI,CAAC,EAAE,MAAM,CAAC;CACb,CAAC"}

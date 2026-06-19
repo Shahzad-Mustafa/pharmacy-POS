@@ -115,6 +115,7 @@ class InventoryService:
             select(
                 func.coalesce(func.sum(MedicineBatch.quantity * MedicineBatch.purchase_price), 0).label("total_cost"),
                 func.coalesce(func.sum(MedicineBatch.quantity * MedicineBatch.selling_price), 0).label("total_mrp"),
+                func.coalesce(func.sum(MedicineBatch.quantity), 0).label("total_units"),
             )
             .where(MedicineBatch.is_active == True, MedicineBatch.quantity > 0)
         )
@@ -124,8 +125,11 @@ class InventoryService:
         row = result.fetchone()
         cost = float(row.total_cost or 0)
         mrp = float(row.total_mrp or 0)
+        units = int(row.total_units or 0)
         return {
             "total_cost_value": cost,
+            "total_retail_value": mrp,
             "total_mrp_value": mrp,
+            "total_units": units,
             "potential_profit": mrp - cost,
         }

@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Edit, Trash2, Pill } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 const medicineSchema = z.object({
   name: z.string().min(1, "Name required"),
@@ -45,12 +46,13 @@ export default function Medicines() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [open, setOpen] = useState(false);
   const [editMedicine, setEditMedicine] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useListMedicines({ q: search || undefined, category: categoryFilter || undefined, page, per_page: 20 });
+  const { data, isLoading } = useListMedicines({ q: search || undefined, category: categoryFilter || undefined, page, per_page: perPage });
   const { data: categories } = useGetMedicineCategories();
   const createMed = useCreateMedicine();
   const updateMed = useUpdateMedicine();
@@ -126,22 +128,24 @@ export default function Medicines() {
   };
 
   const medicines = (data as any)?.data ?? [];
-  const total = (data as any)?.total ?? 0;
-  const totalPages = (data as any)?.total_pages ?? 1;
+  const total = (data as any)?.pagination?.total ?? 0;
+  const totalPages = (data as any)?.pagination?.pages ?? 1;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Medicine Catalog</h1>
-          <p className="text-muted-foreground mt-1">{total} medicines in system</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate} data-testid="button-add-medicine">
-              <Plus className="h-4 w-4 mr-2" /> Add Medicine
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        title="Medicine Catalog"
+        subtitle={`${total} medicines in system`}
+        icon={Pill}
+        gradient="from-emerald-600 via-emerald-500 to-teal-500"
+        actions={
+          <Button onClick={openCreate} className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold" data-testid="button-add-medicine">
+            <Plus className="h-4 w-4 mr-2" /> Add Medicine
+          </Button>
+        }
+      />
+
+      <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editMedicine ? "Edit Medicine" : "Add Medicine"}</DialogTitle>
@@ -242,8 +246,7 @@ export default function Medicines() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
-      </div>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -275,30 +278,52 @@ export default function Medicines() {
           {isLoading ? (
             <div className="p-6 space-y-3">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
+            <div className="overflow-x-auto">
+
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Medicine</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Strength / Form</TableHead>
+                  <TableHead className="hidden md:table-cell">Category</TableHead>
+                  <TableHead className="hidden lg:table-cell">Strength / Form</TableHead>
                   <TableHead>MRP</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead className="hidden sm:table-cell">Expiry</TableHead>
                   <TableHead>Rx</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden sm:table-cell">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {medicines.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">No medicines found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">No medicines found</TableCell></TableRow>
                 ) : medicines.map((med: any) => (
                   <TableRow key={med.id} data-testid={`row-medicine-${med.id}`}>
                     <TableCell>
                       <div className="font-medium">{med.name}</div>
                       <div className="text-xs text-muted-foreground">{med.genericName ?? med.generic_name}</div>
                     </TableCell>
-                    <TableCell><Badge variant="outline">{med.category ?? "—"}</Badge></TableCell>
-                    <TableCell className="text-sm">{med.strength} {med.form && `· ${med.form}`}</TableCell>
-                    <TableCell className="font-mono">Rs. {Number(med.mrp).toFixed(2)}</TableCell>
+                    <TableCell className="hidden md:table-cell"><Badge variant="outline">{med.category ?? "—"}</Badge></TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">{med.strength} {med.form && `· ${med.form}`}</TableCell>
+                    <TableCell className="font-mono text-sm">Rs. {Number(med.mrp).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <span className={(med.current_stock ?? 0) <= (med.min_stock_level ?? 10) && (med.current_stock ?? 0) > 0 ? "text-yellow-600 font-semibold" : (med.current_stock ?? 0) === 0 ? "text-destructive font-semibold" : ""}>
+                        {med.current_stock ?? 0}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {(() => {
+                        const exp = med.nearest_expiry;
+                        if (!exp) return <span className="text-muted-foreground text-xs">—</span>;
+                        const today = new Date(); today.setHours(0,0,0,0);
+                        const expDate = new Date(exp); expDate.setHours(0,0,0,0);
+                        const diffDays = Math.floor((expDate.getTime() - today.getTime()) / 86400000);
+                        const label = expDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                        if (diffDays < 0) return <span className="text-red-600 font-semibold text-xs">{label}<br/><span className="text-red-400">Expired</span></span>;
+                        if (diffDays <= 90) return <span className="text-orange-500 font-semibold text-xs">{label}<br/><span className="text-orange-400">{diffDays}d left</span></span>;
+                        return <span className="text-xs">{label}</span>;
+                      })()}
+                    </TableCell>
                     <TableCell>
                       {(med.requiresPrescription ?? med.requires_prescription) ? (
                         <Badge variant="destructive" className="text-xs">Rx</Badge>
@@ -306,7 +331,7 @@ export default function Medicines() {
                         <Badge variant="secondary" className="text-xs">OTC</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant={(med.isActive ?? med.is_active) ? "default" : "secondary"}>
                         {(med.isActive ?? med.is_active) ? "Active" : "Inactive"}
                       </Badge>
@@ -323,16 +348,42 @@ export default function Medicines() {
                 ))}
               </TableBody>
             </Table>
-          )}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 border-t">
-              <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-                <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
-              </div>
+
             </div>
           )}
+          <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground flex-wrap gap-2">
+            <span>
+              {total === 0
+                ? "No medicines found"
+                : `Showing ${(page - 1) * perPage + 1}–${Math.min(page * perPage, total)} of ${total} medicine${total !== 1 ? "s" : ""}`}
+            </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs">Per page:</span>
+                <Select
+                  value={String(perPage)}
+                  onValueChange={(v) => { setPerPage(Number(v)); setPage(1); }}
+                >
+                  <SelectTrigger className="h-8 w-20 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="outline" className="h-8" disabled={page === 1} onClick={() => setPage(1)}>«</Button>
+                <Button size="sm" variant="outline" className="h-8" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>‹ Prev</Button>
+                <span className="px-3 text-xs font-medium text-foreground">Page {page} of {totalPages || 1}</span>
+                <Button size="sm" variant="outline" className="h-8" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next ›</Button>
+                <Button size="sm" variant="outline" className="h-8" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>»</Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

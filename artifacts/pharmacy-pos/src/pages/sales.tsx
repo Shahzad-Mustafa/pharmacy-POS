@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { DollarSign, Receipt, RotateCcw } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 function SaleDetail({ saleId, onClose }: { saleId: string; onClose: () => void }) {
   const { data: sale, isLoading } = useGetSale(saleId, {
@@ -132,10 +133,12 @@ export default function Sales() {
     <div className="space-y-6">
       {selectedSaleId && <SaleDetail saleId={selectedSaleId} onClose={() => setSelectedSaleId(null)} />}
 
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
-        <p className="text-muted-foreground mt-1">Transaction records and refunds</p>
-      </div>
+      <PageHeader
+        title="Sales History"
+        subtitle="Transaction records and refunds"
+        icon={Receipt}
+        gradient="from-sky-600 via-sky-500 to-cyan-500"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -190,16 +193,18 @@ export default function Sales() {
           {isLoading ? (
             <div className="p-6 space-y-3">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
+            <div className="overflow-x-auto">
+
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Payment</TableHead>
+                  <TableHead className="hidden sm:table-cell">Patient</TableHead>
+                  <TableHead className="hidden md:table-cell">Type</TableHead>
+                  <TableHead className="hidden sm:table-cell">Payment</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden md:table-cell">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,22 +213,24 @@ export default function Sales() {
                 ) : sales.map((s: any) => (
                   <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelectedSaleId(s.id)} data-testid={`row-sale-${s.id}`}>
                     <TableCell className="font-mono text-sm">{s.invoiceNumber ?? s.invoice_number}</TableCell>
-                    <TableCell>{s.patient_name ?? (s.patient_id ?? s.patientId ? "Patient" : "Walk-in")}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs capitalize">{s.saleType ?? s.sale_type}</Badge></TableCell>
-                    <TableCell className="capitalize text-sm">{s.paymentMethod ?? s.payment_method}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{s.patient_name ?? (s.patient_id ?? s.patientId ? "Patient" : "Walk-in")}</TableCell>
+                    <TableCell className="hidden md:table-cell"><Badge variant="outline" className="text-xs capitalize">{s.saleType ?? s.sale_type}</Badge></TableCell>
+                    <TableCell className="hidden sm:table-cell capitalize text-sm">{s.paymentMethod ?? s.payment_method}</TableCell>
                     <TableCell className="font-mono font-medium">Rs. {Number(s.total).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant={s.status === "completed" ? "default" : s.status === "refunded" ? "destructive" : "secondary"}>
                         {s.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {new Date(s.createdAt ?? s.created_at).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+
+            </div>
           )}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t">

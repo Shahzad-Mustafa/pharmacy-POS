@@ -1,24 +1,25 @@
 import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 import {
   useGetDashboardOverview,
   useGetDashboardAlerts,
   useGetTopMedicines,
   useGetRevenueTrend,
+  customFetch,
 } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { DollarSign, Activity, Users, FileText, AlertCircle, PackageX, Clock } from "lucide-react";
+import {
+  DollarSign, Activity, Users, FileText, AlertTriangle,
+  PackageX, Clock, ChevronRight, XCircle, LayoutDashboard,
+} from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
@@ -37,13 +38,42 @@ export default function Dashboard() {
   const { data: trend, isLoading: loadingTrend } = useGetRevenueTrend(
     branchId ? { branch_id: branchId, days: 30 } : { days: 30 }
   );
+  const { data: lowStockData } = useQuery({
+    queryKey: ["low-stock-list", branchId],
+    queryFn: () => customFetch(`/api/medicines/low-stock${branchId ? `?branch_id=${branchId}` : ""}`),
+    refetchInterval: 60_000,
+  });
+
+  const lowStockItems: any[] = Array.isArray(lowStockData) ? lowStockData : [];
+  const outOfStock = lowStockItems.filter((i) => i.current_stock === 0);
+  const belowMin = lowStockItems.filter((i) => i.current_stock > 0);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview and key metrics for your pharmacy.</p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Overview and key metrics for your pharmacy"
+        icon={LayoutDashboard}
+        gradient="from-teal-600 via-teal-500 to-emerald-500"
+      />
+
+      {/* Critical low-stock banner */}
+      {outOfStock.length > 0 && (
+        <Link href="/inventory">
+          <div className="flex items-center gap-3 p-4 rounded-lg border-2 border-red-400 bg-red-50 dark:bg-red-950/30 cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors group">
+            <XCircle className="h-6 w-6 text-red-500 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-700 dark:text-red-400">
+                {outOfStock.length} product{outOfStock.length > 1 ? "s" : ""} out of stock
+              </p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-0.5">
+                {outOfStock.slice(0, 3).map((i) => i.name).join(", ")}{outOfStock.length > 3 ? ` +${outOfStock.length - 3} more` : ""}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-red-400 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -74,16 +104,20 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Alerts */}
+      {/* Alert Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <AlertCard
-          title="Low Stock Items"
-          count={alerts?.low_stock_count || 0}
-          icon={<PackageX className="w-5 h-5 text-orange-500" />}
-          color="text-orange-500"
-          bg="bg-orange-500/10"
-          loading={loadingAlerts}
-        />
+        <Link href="/inventory">
+          <AlertCard
+            title="Low Stock Items"
+            count={alerts?.low_stock_count || 0}
+            icon={<PackageX className="w-5 h-5 text-orange-500" />}
+            color="text-orange-500"
+            bg="bg-orange-500/10"
+            loading={loadingAlerts}
+            clickable
+            subtitle="Click to view inventory"
+          />
+        </Link>
         <AlertCard
           title="Expiring Soon"
           count={alerts?.expiring_soon_count || 0}
@@ -101,6 +135,63 @@ export default function Dashboard() {
           loading={loadingAlerts}
         />
       </div>
+
+      {/* Low stock details panel */}
+      {lowStockItems.length > 0 && (
+        <Card className="border-orange-200 dark:border-orange-900">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <CardTitle className="text-base">
+                  {lowStockItems.length} Products Running Low on Stock
+                </CardTitle>
+              </div>
+              <Link href="/inventory">
+                <Button size="sm" variant="outline" className="text-orange-600 border-orange-300 hover:bg-orange-50">
+                  View All <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {lowStockItems.slice(0, 6).map((item: any) => {
+                const isOut = item.current_stock === 0;
+                return (
+                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${isOut ? "bg-red-500" : "bg-orange-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.category}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge
+                        variant="outline"
+                        className={isOut
+                          ? "text-red-600 border-red-300 bg-red-50 dark:bg-red-950"
+                          : "text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950"
+                        }
+                      >
+                        {isOut ? "Out of Stock" : `${item.current_stock} left`}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+              {lowStockItems.length > 6 && (
+                <div className="px-4 py-2.5 text-center">
+                  <Link href="/inventory">
+                    <Button variant="link" size="sm" className="text-orange-600">
+                      +{lowStockItems.length - 6} more products — View all
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -120,20 +211,14 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `Rs.${value}`} />
+                  <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); }} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `Rs.${v}`} />
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <RechartsTooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
-                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(var(--primary))"
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                  />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -155,8 +240,8 @@ export default function Dashboard() {
                   <XAxis type="number" hide />
                   <YAxis dataKey="medicine_name" type="category" fontSize={11} tickLine={false} axisLine={false} width={100} />
                   <RechartsTooltip
-                    cursor={{ fill: 'hsl(var(--muted))' }}
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+                    cursor={{ fill: "hsl(var(--muted))" }}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))" }}
                   />
                   <Bar dataKey="units_sold" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -196,9 +281,9 @@ function MetricCard({ title, value, icon, loading, trend }: any) {
   );
 }
 
-function AlertCard({ title, count, icon, color, bg, loading }: any) {
+function AlertCard({ title, count, icon, color, bg, loading, clickable, subtitle }: any) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={clickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""}>
       <CardContent className="p-0 flex items-stretch h-24">
         <div className={`w-24 flex items-center justify-center ${bg}`}>
           {icon}
@@ -210,7 +295,9 @@ function AlertCard({ title, count, icon, color, bg, loading }: any) {
           ) : (
             <h3 className={`text-2xl font-bold tracking-tight ${color}`}>{count}</h3>
           )}
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
+        {clickable && <div className="flex items-center pr-3"><ChevronRight className="h-4 w-4 text-muted-foreground" /></div>}
       </CardContent>
     </Card>
   );

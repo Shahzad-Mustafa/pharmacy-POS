@@ -1,1 +1,0 @@
-{"version":3,"file":"purchaseOrderListResponse.d.ts","sourceRoot":"","sources":["../../../src/generated/types/purchaseOrderListResponse.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AAC/C,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAC;AAErD,MAAM,WAAW,yBAAyB;IACxC,IAAI,EAAE,aAAa,EAAE,CAAC;IACtB,UAAU,EAAE,UAAU,CAAC;CACxB"}

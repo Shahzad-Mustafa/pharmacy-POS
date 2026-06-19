@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Save, Printer, Plus, TestTube, Shield, Receipt, Database, Settings2 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 type SystemSetting = { key: string; value: any; description?: string };
 type TaxSetting = { tax_rate: number; tax_name: string; tax_included: boolean; tax_registration_number?: string };
@@ -28,13 +29,17 @@ function GeneralSettings() {
 
   const { data, isLoading } = useQuery<SystemSetting[]>({
     queryKey: ["system-settings"],
-    queryFn: () => customFetch("/api/settings"),
+    queryFn: async () => {
+      const res: any = await customFetch("/api/settings");
+      const dict: Record<string, any> = res?.settings ?? res ?? {};
+      return Object.entries(dict).map(([key, value]) => ({ key, value }));
+    },
   });
 
   useEffect(() => {
-    if (data) {
+    if (data && Array.isArray(data)) {
       const map: Record<string, any> = {};
-      (data as any[]).forEach((s: SystemSetting) => { map[s.key] = s.value?.v ?? s.value; });
+      data.forEach((s: SystemSetting) => { map[s.key] = s.value?.v ?? s.value; });
       setForm(map);
     }
   }, [data]);
@@ -106,7 +111,16 @@ function TaxSettings() {
 
   const { data, isLoading } = useQuery<TaxSetting>({
     queryKey: ["tax-settings"],
-    queryFn: () => customFetch("/api/settings/tax"),
+    queryFn: async () => {
+      const res: any = await customFetch("/api/settings/tax");
+      const rule = res?.rules?.[0] ?? res ?? {};
+      return {
+        tax_rate: rule.tax_rate ?? 0.17,
+        tax_name: rule.tax_name ?? "GST",
+        tax_included: rule.tax_included ?? false,
+        tax_registration_number: rule.tax_registration_number ?? "",
+      };
+    },
   });
 
   useEffect(() => { if (data) setForm(data as TaxSetting); }, [data]);
@@ -160,10 +174,13 @@ function PrinterSettings() {
 
   const { data, isLoading } = useQuery<Printer[]>({
     queryKey: ["printers"],
-    queryFn: () => customFetch("/api/settings/printers"),
+    queryFn: async () => {
+      const res: any = await customFetch("/api/settings/printers");
+      return res?.data ?? res?.printers ?? (Array.isArray(res) ? res : []);
+    },
   });
 
-  const printers = (data as any)?.printers ?? (Array.isArray(data) ? data : []);
+  const printers: Printer[] = Array.isArray(data) ? data : [];
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => customFetch("/api/settings/printers", { method: "POST", body: JSON.stringify(payload) }),
@@ -288,7 +305,17 @@ function ReceiptSettings() {
 
   const { data, isLoading } = useQuery<ReceiptTemplate>({
     queryKey: ["receipt-template"],
-    queryFn: () => customFetch("/api/settings/receipt-template"),
+    queryFn: async () => {
+      const res: any = await customFetch("/api/settings/receipt-template");
+      return {
+        header: res?.header_lines?.join("\n") ?? res?.header ?? "",
+        footer: res?.footer_lines?.join("\n") ?? res?.footer ?? "",
+        show_logo: res?.show_logo ?? true,
+        show_tax_breakdown: res?.show_tax_breakdown ?? true,
+        show_barcode: res?.show_barcode ?? false,
+        copies: res?.copies ?? 1,
+      };
+    },
   });
 
   useEffect(() => { if (data) setForm(data as ReceiptTemplate); }, [data]);
@@ -413,10 +440,12 @@ function BackupSection() {
 export default function Settings() {
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Settings2 className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Settings</h1>
-      </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Configure your pharmacy system preferences"
+        icon={Settings2}
+        gradient="from-slate-600 via-slate-500 to-gray-600"
+      />
 
       <Tabs defaultValue="general">
         <TabsList className="flex-wrap h-auto gap-1">

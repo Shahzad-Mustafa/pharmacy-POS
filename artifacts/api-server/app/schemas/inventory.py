@@ -26,13 +26,17 @@ class BatchCreate(BaseModel):
 
 
 class BatchUpdate(BaseModel):
+    purchase_price: Optional[float] = None
     selling_price: Optional[float] = None
+    expiry_date: Optional[date] = None
+    quantity: Optional[int] = None
     notes: Optional[str] = None
 
 
 class BatchResponse(BaseModel):
     id: uuid.UUID
     medicine_id: uuid.UUID
+    medicine_name: Optional[str] = None
     branch_id: uuid.UUID
     batch_number: str
     expiry_date: Optional[date]

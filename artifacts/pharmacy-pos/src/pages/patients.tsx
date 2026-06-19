@@ -25,7 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, User, Phone, AlertTriangle } from "lucide-react";
+import { Plus, Search, User, Phone, AlertTriangle, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 const patientSchema = z.object({
   name: z.string().min(1, "Name required"),
@@ -223,15 +224,17 @@ export default function Patients() {
         <PatientDetail patientId={selectedPatientId} onClose={() => setSelectedPatientId(null)} />
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Patient Registry</h1>
-          <p className="text-muted-foreground mt-1">{total} patients registered</p>
-        </div>
-        <Button onClick={openCreate} data-testid="button-add-patient">
-          <Plus className="h-4 w-4 mr-2" /> Register Patient
-        </Button>
-      </div>
+      <PageHeader
+        title="Patient Registry"
+        subtitle={`${total} patients registered`}
+        icon={Users}
+        gradient="from-indigo-600 via-indigo-500 to-sky-500"
+        actions={
+          <Button className="bg-white text-indigo-700 hover:bg-indigo-50 font-semibold" onClick={openCreate} data-testid="button-add-patient">
+            <Plus className="h-4 w-4 mr-2" /> Register Patient
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -250,14 +253,16 @@ export default function Patients() {
           {isLoading ? (
             <div className="p-6 space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
           ) : (
+            <div className="overflow-x-auto">
+
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Patient</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead>CNIC</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Allergies</TableHead>
+                  <TableHead className="hidden md:table-cell">CNIC</TableHead>
+                  <TableHead className="hidden sm:table-cell">Type</TableHead>
+                  <TableHead className="hidden md:table-cell">Allergies</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -278,13 +283,13 @@ export default function Patients() {
                       )}
                     </TableCell>
                     <TableCell>{p.phone ?? "—"}</TableCell>
-                    <TableCell className="font-mono text-sm">{p.cnic ?? "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell font-mono text-sm">{p.cnic ?? "—"}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant={(p.customer_type ?? p.customerType) === "hospital" ? "default" : "outline"}>
                         {(p.customer_type ?? p.customerType) === "hospital" ? "Hospital" : "Retail"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {(p.allergies ?? []).length > 0 ? (
                         <div className="flex gap-1">
                           <AlertTriangle className="h-3 w-3 text-destructive" />
@@ -299,6 +304,8 @@ export default function Patients() {
                 ))}
               </TableBody>
             </Table>
+
+            </div>
           )}
           {totalPages > 1 && (
             <div className="flex items-center justify-between p-4 border-t">

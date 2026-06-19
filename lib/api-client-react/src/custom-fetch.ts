@@ -17,6 +17,40 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _onAuthFailure: (() => void) | null = null;
+let _isRefreshing = false;
+let _refreshPromise: Promise<string | null> | null = null;
+
+export function setOnAuthFailure(cb: () => void): void {
+  _onAuthFailure = cb;
+}
+
+async function attemptTokenRefresh(): Promise<string | null> {
+  if (_isRefreshing && _refreshPromise) return _refreshPromise;
+  _isRefreshing = true;
+  _refreshPromise = (async () => {
+    try {
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (!refreshToken) return null;
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const newToken = data?.access_token ?? null;
+      if (newToken) localStorage.setItem("access_token", newToken);
+      return newToken;
+    } catch {
+      return null;
+    } finally {
+      _isRefreshing = false;
+      _refreshPromise = null;
+    }
+  })();
+  return _refreshPromise;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -360,7 +394,19 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response = await fetch(input, { ...init, method, headers });
+
+  if (response.status === 401 && !resolveUrl(input).includes("/auth/")) {
+    const newToken = await attemptTokenRefresh();
+    if (newToken) {
+      headers.set("authorization", `Bearer ${newToken}`);
+      response = await fetch(input, { ...init, method, headers });
+    } else {
+      if (_onAuthFailure) _onAuthFailure();
+      const errorData = await parseErrorBody(response, method);
+      throw new ApiError(response, errorData, requestInfo);
+    }
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

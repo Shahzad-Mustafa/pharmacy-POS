@@ -129,8 +129,10 @@ async def get_branch_dashboard(
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import date as dt_date
+    from sqlalchemy import cast, Date, literal
     from app.models.sale import Sale
     today = date or dt_date.today().isoformat()
-    revenue = (await db.execute(select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.branch_id == branch_id, Sale.status == "completed", func.date(Sale.created_at) == today))).scalar_one()
-    txns = (await db.execute(select(func.count()).select_from(Sale).where(Sale.branch_id == branch_id, Sale.status == "completed", func.date(Sale.created_at) == today))).scalar_one()
+    today_cast = cast(literal(today), Date)
+    revenue = (await db.execute(select(func.coalesce(func.sum(Sale.total), 0)).where(Sale.branch_id == branch_id, Sale.status == "completed", cast(Sale.created_at, Date) == today_cast))).scalar_one()
+    txns = (await db.execute(select(func.count()).select_from(Sale).where(Sale.branch_id == branch_id, Sale.status == "completed", cast(Sale.created_at, Date) == today_cast))).scalar_one()
     return {"date": today, "revenue": float(revenue or 0), "transactions": txns, "avg_basket": float(revenue or 0) / max(txns, 1)}

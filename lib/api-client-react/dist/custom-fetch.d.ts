@@ -4,6 +4,7 @@ export type CustomFetchOptions = RequestInit & {
 export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
+export declare function setOnAuthFailure(cb: () => void): void;
 /**
  * Set a base URL that is prepended to every relative request URL
  * (i.e. paths that start with `/`).

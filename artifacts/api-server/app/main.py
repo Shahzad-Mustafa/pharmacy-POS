@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -29,7 +30,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Database init failed: {e}")
     await get_redis()
+    # Start in-process background notification checker (no Celery/Redis needed)
+    from app.tasks import notification_check_loop
+    bg_task = asyncio.create_task(notification_check_loop())
     yield
+    bg_task.cancel()
+    try:
+        await bg_task
+    except asyncio.CancelledError:
+        pass
     await close_redis()
     logger.info("Shutting down")
 

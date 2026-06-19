@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Eye, CheckCircle, XCircle, Clock, DollarSign, FileText, Building2 } from "lucide-react";
+import { Plus, Eye, CheckCircle, XCircle, Clock, DollarSign, FileText, Building2, Shield } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 type Claim = {
   id: string;
@@ -224,9 +225,12 @@ export default function Insurance() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Insurance & Claims</h1>
-      </div>
+      <PageHeader
+        title="Insurance & Claims"
+        subtitle="Manage insurance providers and track claim submissions"
+        icon={Shield}
+        gradient="from-blue-600 via-blue-500 to-indigo-500"
+      />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

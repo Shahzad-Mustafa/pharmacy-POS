@@ -89,6 +89,7 @@ class MedicineResponse(BaseModel):
     contraindications: Optional[List[str]]
     side_effects: Optional[List[str]]
     is_active: bool
+    current_stock: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

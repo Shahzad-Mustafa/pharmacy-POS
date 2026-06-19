@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { BarChart2, Download, Printer, LogOut } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { ShiftCloseModal } from "@/components/shift-close-modal";
+import { Button } from "@/components/ui/button";
 import {
   useGetDailySummary,
   getGetDailySummaryQueryKey,
@@ -23,11 +27,58 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer
 } from "recharts";
 
+function exportDailyCSV(d: any, date: string, user: any) {
+  if (!d) return;
+  const byPayment = d.by_payment_method ?? {};
+  const rows = [
+    ["Daily Summary Report", ""],
+    ["Date", date],
+    ["Branch", user?.branch_name ?? ""],
+    ["Generated", new Date().toLocaleString("en-PK")],
+    ["", ""],
+    ["Total Revenue (Rs.)", Number(d.total_revenue ?? 0).toFixed(2)],
+    ["Total Transactions", d.total_transactions ?? 0],
+    ["Tax (Rs.)", Number(d.tax ?? 0).toFixed(2)],
+    ["Discounts (Rs.)", Number(d.discounts ?? 0).toFixed(2)],
+    ["", ""],
+    ["By Payment Method", ""],
+    ...Object.entries(byPayment).map(([m, v]) => [m, Number(v).toFixed(2)]),
+  ];
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `daily-report-${date}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printDailySummary(d: any, date: string, user: any) {
+  if (!d) return;
+  const byPayment = d.by_payment_method ?? {};
+  const html = `<html><head><title>Daily Report ${date}</title>
+  <style>body{font-family:sans-serif;padding:24px;max-width:600px;margin:auto}h1{font-size:20px;margin-bottom:4px}.sub{color:#666;font-size:13px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{padding:8px 12px;text-align:left;border-bottom:1px solid #eee}th{background:#f5f5f5;font-size:12px;text-transform:uppercase;color:#888}.total{font-weight:700;font-size:16px}</style></head>
+  <body>
+  <h1>Daily Summary Report</h1>
+  <p class="sub">Date: ${date} &nbsp;|&nbsp; Branch: ${user?.branch_name ?? ""} &nbsp;|&nbsp; ${new Date().toLocaleString("en-PK")}</p>
+  <table><tr><th>Metric</th><th>Value</th></tr>
+  <tr><td class="total">Total Revenue</td><td class="total">Rs. ${Number(d.total_revenue ?? 0).toLocaleString("en-PK", { minimumFractionDigits: 2 })}</td></tr>
+  <tr><td>Transactions</td><td>${d.total_transactions ?? 0}</td></tr>
+  <tr><td>Tax Collected</td><td>Rs. ${Number(d.tax ?? 0).toFixed(2)}</td></tr>
+  <tr><td>Discounts Given</td><td>Rs. ${Number(d.discounts ?? 0).toFixed(2)}</td></tr>
+  </table>
+  ${Object.keys(byPayment).length > 0 ? `<h2 style="font-size:14px;margin-top:20px">By Payment Method</h2><table>
+  ${Object.entries(byPayment).map(([m, v]) => `<tr><td style="text-transform:capitalize">${m}</td><td>Rs. ${Number(v).toFixed(2)}</td></tr>`).join("")}
+  </table>` : ""}
+  </body></html>`;
+  const w = window.open("", "_blank", "width=700,height=500");
+  if (w) { w.document.write(html); w.document.close(); w.print(); }
+}
+
 export default function Reports() {
   const { user } = useAuth();
   const branchId = user?.branch_id ?? undefined;
   const today = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(today);
+  const [shiftOpen, setShiftOpen] = useState(false);
 
   const { data: daily, isLoading: dailyLoading } = useGetDailySummary(
     { branch_id: branchId, date: selectedDate },
@@ -58,10 +109,22 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground mt-1">Analytics and operational summaries</p>
-      </div>
+      <ShiftCloseModal open={shiftOpen} onClose={() => setShiftOpen(false)} date={selectedDate} />
+
+      <PageHeader
+        title="Reports"
+        subtitle="Analytics and operational summaries"
+        icon={BarChart2}
+        gradient="from-violet-600 via-purple-500 to-indigo-500"
+        actions={
+          <Button
+            className="bg-white text-violet-700 hover:bg-violet-50 font-semibold"
+            onClick={() => setShiftOpen(true)}
+          >
+            <LogOut className="h-4 w-4 mr-2" /> Close Shift
+          </Button>
+        }
+      />
 
       <Tabs defaultValue="daily">
         <TabsList>
@@ -75,11 +138,20 @@ export default function Reports() {
         <TabsContent value="daily">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle>Daily Summary</CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Label className="text-sm">Date</Label>
                   <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-[160px]" data-testid="input-report-date" />
+                  <Button size="sm" variant="outline" onClick={() => exportDailyCSV(d, selectedDate, user)} disabled={!d}>
+                    <Download className="h-4 w-4 mr-1" /> CSV
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => printDailySummary(d, selectedDate, user)} disabled={!d}>
+                    <Printer className="h-4 w-4 mr-1" /> Print
+                  </Button>
+                  <Button size="sm" onClick={() => setShiftOpen(true)}>
+                    <LogOut className="h-4 w-4 mr-1" /> Close Shift
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -190,7 +262,7 @@ export default function Reports() {
             <CardHeader><CardTitle>Payables Aging Report</CardTitle></CardHeader>
             <CardContent className="p-0">
               {agingLoading ? <div className="p-6"><Skeleton className="h-32 w-full" /></div> : (
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Supplier</TableHead>
@@ -217,7 +289,7 @@ export default function Reports() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </Table></div>
               )}
             </CardContent>
           </Card>

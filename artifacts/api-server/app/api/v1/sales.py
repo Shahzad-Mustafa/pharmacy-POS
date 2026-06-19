@@ -64,9 +64,28 @@ async def search_sales(
         query = query.where(*filters)
     total = (await db.execute(select(func.count()).select_from(Sale))).scalar_one()
     from sqlalchemy.orm import selectinload
+    from sqlalchemy import select as _sel
+    from app.models.medicine import Medicine as _Med
+    import uuid as _uuid
     result = await db.execute(query.options(selectinload(Sale.items)).offset((page - 1) * per_page).limit(per_page))
     sales = result.scalars().all()
-    return paginate([SaleResponse.model_validate(s).model_dump() for s in sales], total, page, per_page)
+
+    all_med_ids = list({item.medicine_id for s in sales for item in s.items})
+    med_names: dict = {}
+    if all_med_ids:
+        rows = (await db.execute(_sel(_Med.id, _Med.name).where(_Med.id.in_(all_med_ids)))).all()
+        med_names = {r[0]: r[1] for r in rows}
+
+    result_list = []
+    for s in sales:
+        d = SaleResponse.model_validate(s).model_dump()
+        for item in d.get("items", []):
+            raw_id = item.get("medicine_id")
+            if raw_id is not None:
+                key = _uuid.UUID(str(raw_id)) if not isinstance(raw_id, _uuid.UUID) else raw_id
+                item["medicine_name"] = med_names.get(key, "")
+        result_list.append(d)
+    return paginate(result_list, total, page, per_page)
 
 
 @router.get("/kpis", summary="Get sales KPIs")

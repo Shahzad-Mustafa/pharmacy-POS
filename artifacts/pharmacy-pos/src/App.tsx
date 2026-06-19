@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout";
@@ -31,8 +32,18 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+// Renders all authenticated routes inside a single persistent Layout instance
+// so the sidebar/notification hook don't remount on every navigation.
+function AuthenticatedApp() {
+  const { isAuthenticated, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Redirect to="/login" />;
@@ -40,7 +51,23 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   return (
     <Layout>
-      <Component />
+      <Switch>
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/pos" component={POS} />
+        <Route path="/medicines" component={Medicines} />
+        <Route path="/inventory" component={Inventory} />
+        <Route path="/patients" component={Patients} />
+        <Route path="/prescriptions" component={Prescriptions} />
+        <Route path="/sales" component={Sales} />
+        <Route path="/suppliers" component={Suppliers} />
+        <Route path="/branches" component={Branches} />
+        <Route path="/users" component={Users} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/insurance" component={Insurance} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/notifications" component={Notifications} />
+        <Route component={NotFound} />
+      </Switch>
     </Layout>
   );
 }
@@ -52,21 +79,7 @@ function Router() {
       <Route path="/">
         <Redirect to="/dashboard" />
       </Route>
-      <Route path="/dashboard">{() => <ProtectedRoute component={Dashboard} />}</Route>
-      <Route path="/pos">{() => <ProtectedRoute component={POS} />}</Route>
-      <Route path="/medicines">{() => <ProtectedRoute component={Medicines} />}</Route>
-      <Route path="/inventory">{() => <ProtectedRoute component={Inventory} />}</Route>
-      <Route path="/patients">{() => <ProtectedRoute component={Patients} />}</Route>
-      <Route path="/prescriptions">{() => <ProtectedRoute component={Prescriptions} />}</Route>
-      <Route path="/sales">{() => <ProtectedRoute component={Sales} />}</Route>
-      <Route path="/suppliers">{() => <ProtectedRoute component={Suppliers} />}</Route>
-      <Route path="/branches">{() => <ProtectedRoute component={Branches} />}</Route>
-      <Route path="/users">{() => <ProtectedRoute component={Users} />}</Route>
-      <Route path="/reports">{() => <ProtectedRoute component={Reports} />}</Route>
-      <Route path="/insurance">{() => <ProtectedRoute component={Insurance} />}</Route>
-      <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>
-      <Route path="/notifications">{() => <ProtectedRoute component={Notifications} />}</Route>
-      <Route component={NotFound} />
+      <Route>{() => <AuthenticatedApp />}</Route>
     </Switch>
   );
 }
@@ -81,6 +94,7 @@ function App() {
           </AuthProvider>
         </WouterRouter>
         <Toaster />
+        <SonnerToaster position="top-right" richColors expand closeButton />
       </TooltipProvider>
     </QueryClientProvider>
   );

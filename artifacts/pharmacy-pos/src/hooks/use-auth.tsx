@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { setAuthTokenGetter, UserProfile } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setOnAuthFailure, UserProfile } from "@workspace/api-client-react";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isInitializing: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -30,10 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("user");
       }
     }
+    setIsInitializing(false);
   }, []);
 
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem("access_token"));
+    setOnAuthFailure(() => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+      setToken(null);
+      setUser(null);
+      setLocation("/login");
+    });
   }, []);
 
   const login = (newToken: string, newUser: UserProfile) => {
@@ -46,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
@@ -61,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         isAuthenticated: !!token && !!user,
+        isInitializing,
       }}
     >
       {children}

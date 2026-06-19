@@ -33,7 +33,32 @@ async def list_medicines(
         q=q, category=category, is_active=is_active,
         requires_prescription=requires_prescription, page=page, per_page=per_page,
     )
-    return paginate([MedicineResponse.model_validate(m).model_dump() for m in medicines], total, page, per_page)
+    from sqlalchemy import select as _sel, func as _func
+    from app.models.inventory import MedicineBatch as _Batch
+    med_ids = [m.id for m in medicines]
+    stock_map: dict = {}
+    expiry_map: dict = {}
+    if med_ids:
+        stock_rows = (await db.execute(
+            _sel(_Batch.medicine_id, _func.coalesce(_func.sum(_Batch.quantity), 0).label("qty"))
+            .where(_Batch.medicine_id.in_(med_ids), _Batch.quantity > 0)
+            .group_by(_Batch.medicine_id)
+        )).all()
+        stock_map = {r[0]: int(r[1]) for r in stock_rows}
+        # Nearest expiry date per medicine (including expired batches with stock)
+        expiry_rows = (await db.execute(
+            _sel(_Batch.medicine_id, _func.min(_Batch.expiry_date).label("nearest_expiry"))
+            .where(_Batch.medicine_id.in_(med_ids), _Batch.quantity > 0, _Batch.expiry_date.isnot(None))
+            .group_by(_Batch.medicine_id)
+        )).all()
+        expiry_map = {r[0]: r[1].isoformat() if r[1] else None for r in expiry_rows}
+    dicts = []
+    for m in medicines:
+        d = MedicineResponse.model_validate(m).model_dump()
+        d["current_stock"] = stock_map.get(m.id, 0)
+        d["nearest_expiry"] = expiry_map.get(m.id)
+        dicts.append(d)
+    return paginate(dicts, total, page, per_page)
 
 
 @router.get("/categories", summary="Get medicine categories")
@@ -132,9 +157,32 @@ async def search_medicines(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from sqlalchemy import select, func
+    from app.models.inventory import MedicineBatch
+
     repo = MedicineRepository(db)
     medicines, total = await repo.search(q=q, barcode=barcode, generic=generic, page=page, per_page=per_page)
-    return [MedicineResponse.model_validate(m).model_dump() for m in medicines]
+
+    if not medicines:
+        return []
+
+    med_ids = [m.id for m in medicines]
+    stock_q = (
+        select(MedicineBatch.medicine_id, func.coalesce(func.sum(MedicineBatch.quantity), 0).label("qty"))
+        .where(MedicineBatch.medicine_id.in_(med_ids), MedicineBatch.quantity > 0)
+    )
+    if branch_id:
+        stock_q = stock_q.where(MedicineBatch.branch_id == branch_id)
+    stock_q = stock_q.group_by(MedicineBatch.medicine_id)
+    stock_rows = (await db.execute(stock_q)).all()
+    stock_map = {row.medicine_id: int(row.qty) for row in stock_rows}
+
+    result = []
+    for m in medicines:
+        item = MedicineResponse.model_validate(m).model_dump()
+        item["current_stock"] = stock_map.get(m.id, 0)
+        result.append(item)
+    return result
 
 
 @router.post("/barcode-lookup", summary="Lookup medicine by barcode/GS1")

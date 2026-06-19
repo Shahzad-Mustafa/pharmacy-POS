@@ -68,11 +68,11 @@ class SaleRepository(BaseRepository[Sale]):
         return list(result.scalars().all()), total
 
     async def get_daily_summary(self, branch_id: uuid.UUID, date_str: str, cashier_id: uuid.UUID = None) -> dict:
-        from sqlalchemy import cast, Date, text
+        from sqlalchemy import cast, Date, literal
         filters = [
             Sale.branch_id == branch_id,
             Sale.status == "completed",
-            func.date(Sale.created_at) == date_str,
+            cast(Sale.created_at, Date) == cast(literal(date_str), Date),
         ]
         if cashier_id:
             filters.append(Sale.cashier_id == cashier_id)

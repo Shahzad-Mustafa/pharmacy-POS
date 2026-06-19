@@ -16,7 +16,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 @router.get("", summary="List notifications (inbox)")
 async def list_notifications(
-    type: str = None, is_read: bool = None,
+    type: str = None, is_read: bool = None, unread: bool = None,
     page: int = Query(1, ge=1), per_page: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -26,12 +26,24 @@ async def list_notifications(
         filters.append(Notification.type == type)
     if is_read is not None:
         filters.append(Notification.is_read == is_read)
+    elif unread is True:
+        filters.append(Notification.is_read == False)
     query = select(Notification).where(*filters)
     total = (await db.execute(select(func.count()).select_from(Notification).where(*filters))).scalar_one()
     result = await db.execute(query.order_by(Notification.created_at.desc()).offset((page - 1) * per_page).limit(per_page))
     notifs = result.scalars().all()
     from app.schemas.common import paginate
-    return paginate([{"id": str(n.id), "type": n.type, "title": n.title, "message": n.message, "is_read": n.is_read, "created_at": n.created_at.isoformat()} for n in notifs], total, page, per_page)
+    return paginate([{
+        "id": str(n.id),
+        "type": n.type,
+        "channel": n.channel or "inapp",
+        "title": n.title,
+        "message": n.message,
+        "is_read": n.is_read,
+        "status": n.status or "sent",
+        "data": n.data or {},
+        "created_at": n.created_at.isoformat(),
+    } for n in notifs], total, page, per_page)
 
 
 @router.patch("/read-all", summary="Mark all notifications as read")
@@ -56,20 +68,26 @@ async def mark_read(notification_id: uuid.UUID, current_user: User = Depends(get
 async def get_preferences(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(NotificationPreference).where(NotificationPreference.user_id == current_user.id))
     pref = result.scalar_one_or_none()
-    return {"preferences": pref.preferences if pref else {}}
+    raw = pref.preferences if pref else {}
+    # Unwrap accidental double-nesting ({"preferences": {...}} stored instead of {...})
+    if isinstance(raw, dict) and "preferences" in raw and len(raw) == 1 and isinstance(raw["preferences"], dict):
+        raw = raw["preferences"]
+    return {"preferences": raw}
 
 
 @router.put("/preferences", summary="Update notification preferences")
 async def update_preferences(body: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Frontend sends {"preferences": {...}} — unwrap to store only the inner dict
+    prefs_data = body.get("preferences", body)
     result = await db.execute(select(NotificationPreference).where(NotificationPreference.user_id == current_user.id))
     pref = result.scalar_one_or_none()
     if pref:
-        pref.preferences = body
+        pref.preferences = prefs_data
     else:
-        pref = NotificationPreference(user_id=current_user.id, preferences=body)
+        pref = NotificationPreference(user_id=current_user.id, preferences=prefs_data)
         db.add(pref)
     await db.flush()
-    return {"preferences": body}
+    return {"preferences": prefs_data}
 
 
 @router.post("/send", summary="Send manual notification")
